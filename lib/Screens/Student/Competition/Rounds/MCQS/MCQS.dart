@@ -34,12 +34,21 @@ class _McqsroundState extends State<Mcqsround> {
         widget.competitionId,
         roundType: widget.roundType,
       );
+
       setState(() {
         questions = fetchedQuestions;
         isLoading = false;
-        // Debug print to verify data
-        if (questions.isNotEmpty && questions[0]["Options"] != null) {
+
+        // Debug print to verify loaded data
+        if (questions.isNotEmpty) {
+          print("Loaded questions: ${questions.length}");
           print("First question options: ${questions[0]["Options"]}");
+          if (questions[0]["Options"] != null) {
+            for (var option in questions[0]["Options"]) {
+              print(
+                  "Option: ${option["id"]}, Text: ${option["option"]}, Correct: ${option["isCorrect"]}");
+            }
+          }
         }
       });
     } catch (e) {
@@ -144,13 +153,14 @@ class _McqsroundState extends State<Mcqsround> {
     }
 
     return Column(
-      children: options
-          .map((option) => _buildOption(
-                option["option"] ?? "Option",
-                option["id"].toString(),
-                option["isCorrect"] ?? false,
-              ))
-          .toList(),
+      children: options.map((option) {
+        final optionText = option["option"] ?? "Option ${option["id"]}";
+        return _buildOption(
+          optionText,
+          option["id"].toString(),
+          option["isCorrect"] ?? false,
+        );
+      }).toList(),
     );
   }
 
@@ -173,7 +183,7 @@ class _McqsroundState extends State<Mcqsround> {
                 blurRadius: 10,
                 spreadRadius: 5,
                 offset: Offset(0, 5),
-              ),
+              )
             ],
           ),
           child: Text(

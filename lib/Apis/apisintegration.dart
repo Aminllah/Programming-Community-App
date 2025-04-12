@@ -341,6 +341,10 @@ class Api {
     print("API URL: $url");
     try {
       final response = await http.get(Uri.parse(url));
+
+      // Print the raw response body
+      print("Raw API response: ${response.body}");
+
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
         return data
@@ -354,19 +358,20 @@ class Api {
                       ? (e["options"] as List)
                           .map((opt) => {
                                 "id": opt["id"],
-                                "option": opt["text"],
+                                "option": opt[
+                                    "option"], // Make sure this matches the JSON
                                 "isCorrect": opt["isCorrect"],
                               })
                           .toList()
                       : null,
                 })
             .toList();
-      } else if (response.statusCode == 404) {
-        return [];
       } else {
+        print("API Error: ${response.statusCode} - ${response.body}");
         return [];
       }
     } catch (e) {
+      print("API Exception: $e");
       return [];
     }
   }
