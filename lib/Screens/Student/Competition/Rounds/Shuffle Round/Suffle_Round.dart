@@ -32,11 +32,7 @@ class _SuffleRoundState extends State<SuffleRound> {
         backgroundColor: Colors.amber,
         leading: GestureDetector(
           onTap: () {
-            // Navigator.push(
-            //   context,
-            //   MaterialPageRoute(
-            //       builder: (context) => const CompetitionStartScreen()),
-            // );
+            Navigator.pop(context);
           },
           child: const Icon(
             Icons.arrow_back_ios,

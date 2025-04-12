@@ -80,21 +80,45 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
                     itemCount: rounds.length,
                     itemBuilder: (context, index) {
                       final round = rounds[index];
-
-                      // ✅ Unlock the first round regardless of isLocked status
                       final isLocked =
                           round.roundNumber != 1 && (round.isLocked ?? true);
-
-                      final (icon, route) =
-                          getRoundIconAndRoute(round.roundType ?? 0);
+                      final icon = getRoundIcon(round.roundType ?? 0);
 
                       return GestureDetector(
                         onTap: () {
-                          if (!isLocked && route != null) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => route),
-                            );
+                          if (!isLocked) {
+                            if (round.roundType == 1) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => Mcqsround(
+                                    competitionId: round.id!,
+                                    roundType: round.roundType,
+                                  ),
+                                ),
+                              );
+                            } else if (round.roundType == 2) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => Speedprograming(),
+                                ),
+                              );
+                            } else if (round.roundType == 3) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SuffleRound(),
+                                ),
+                              );
+                            } else if (round.roundType == 4) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => BuzzerRound(),
+                                ),
+                              );
+                            }
                           }
                         },
                         child: Card(
@@ -148,18 +172,18 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
     }
   }
 
-  (IconData, Widget?) getRoundIconAndRoute(int type) {
+  IconData getRoundIcon(int type) {
     switch (type) {
       case 1:
-        return (Icons.quiz, Mcqsround());
+        return Icons.quiz;
       case 2:
-        return (Icons.flash_on, Speedprograming());
+        return Icons.flash_on;
       case 3:
-        return (Icons.shuffle, SuffleRound());
+        return Icons.shuffle;
       case 4:
-        return (Icons.alarm, BuzzerRound());
+        return Icons.alarm;
       default:
-        return (Icons.help_outline, null);
+        return Icons.help_outline;
     }
   }
 }

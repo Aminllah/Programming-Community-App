@@ -333,9 +333,11 @@ class Api {
 
 //get round questions
   Future<List<Map<String, dynamic>>> fetchCompetitionRoundQuestions(
-      int competitionRoundId) async {
+    int competitionRoundId, {
+    int? roundType,
+  }) async {
     final url =
-        '${baseUrl}CompetitionRoundQuestion/GetCompetitionRoundQuestion?competitionRoundId=$competitionRoundId';
+        '${baseUrl}CompetitionRoundQuestion/GetCompetitionRoundQuestion?competitionRoundId=$competitionRoundId${roundType != null ? '&roundType=$roundType' : ''}';
     print("API URL: $url");
     try {
       final response = await http.get(Uri.parse(url));
@@ -346,7 +348,17 @@ class Api {
                   "Id": e["id"],
                   "CompetitionRoundId": e["competitionRoundId"],
                   "QuestionId": e["questionId"],
-                  "QuestionText": e["questionText"]
+                  "QuestionText": e["questionText"],
+                  "QuestionType": e["questionType"],
+                  "Options": e["options"] != null
+                      ? (e["options"] as List)
+                          .map((opt) => {
+                                "id": opt["id"],
+                                "option": opt["text"],
+                                "isCorrect": opt["isCorrect"],
+                              })
+                          .toList()
+                      : null,
                 })
             .toList();
       } else if (response.statusCode == 404) {
