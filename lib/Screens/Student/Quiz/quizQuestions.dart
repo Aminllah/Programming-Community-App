@@ -15,9 +15,8 @@ class TaskQuestions extends StatefulWidget {
 class _TaskQuestionsState extends State<TaskQuestions> {
   bool isLoading = true;
   List<Map<String, dynamic>> questions = []; // Store questions
-  Map<int, int?> selectedOptions =
-      {}; // Store selected options for each question
-  int currentQuestionIndex = 0; // Track current question index
+  Map<int, int?> selectedOptions = {};
+  int currentQuestionIndex = 0;
 
   @override
   void initState() {

@@ -80,45 +80,50 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
                     itemCount: rounds.length,
                     itemBuilder: (context, index) {
                       final round = rounds[index];
-                      final isLocked =
-                          round.roundNumber != 1 && (round.isLocked ?? true);
                       final icon = getRoundIcon(round.roundType ?? 0);
 
+                      // Always allow navigation, regardless of lock status
                       return GestureDetector(
                         onTap: () {
-                          if (!isLocked) {
-                            if (round.roundType == 1) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => Mcqsround(
-                                    competitionId: round.id!,
-                                    roundType: round.roundType,
-                                  ),
+                          if (round.roundType == 1) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => Mcqsround(
+                                  competitionId: round.competitionId,
+                                  RoundId: round.id!,
+                                  roundType: round.roundType,
                                 ),
-                              );
-                            } else if (round.roundType == 2) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => Speedprograming(),
+                              ),
+                            );
+                          } else if (round.roundType == 2) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => Speedprograming(
+                                  competitionid: round.competitionId,
+                                  RoundId: round.id!,
+                                  roundType: round.roundType,
                                 ),
-                              );
-                            } else if (round.roundType == 3) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => SuffleRound(),
+                              ),
+                            );
+                          } else if (round.roundType == 3) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SuffleRound(
+                                  competitionRoundId: round.id!,
+                                  roundType: round.roundType,
                                 ),
-                              );
-                            } else if (round.roundType == 4) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => BuzzerRound(),
-                                ),
-                              );
-                            }
+                              ),
+                            );
+                          } else if (round.roundType == 4) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BuzzerRound(),
+                              ),
+                            );
                           }
                         },
                         child: Card(
@@ -137,12 +142,7 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
                               ),
                             ),
                             subtitle: Text(
-                              isLocked ? "Locked" : "Tap to start",
-                            ),
-                            trailing: isLocked
-                                ? Icon(Icons.lock,
-                                    color: Colors.amber, size: 30)
-                                : null,
+                                "Tap to start"), // Always show "Tap to start"
                           ),
                         ),
                       );

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
 
+import '../../../../../Models/competitionroundmodel.dart';
 import '../../Competition_Start_Screen.dart';
 
 class Mcqsround extends StatefulWidget {
   final int competitionId;
+  final int RoundId;
   final int roundType;
 
   const Mcqsround({
     super.key,
     required this.competitionId,
+    required this.RoundId,
     required this.roundType,
   });
 
@@ -37,7 +40,7 @@ class _McqsroundState extends State<Mcqsround> {
 
   Future<void> _loadInitialData() async {
     try {
-      await _fetchCompetitionRounds();
+      competitionRounds = await _fetchCompetitionRounds(); // Now properly typed
       await _fetchQuestions();
     } catch (e) {
       errorMessage = "Failed to load data. Please try again.";
@@ -47,10 +50,12 @@ class _McqsroundState extends State<Mcqsround> {
     }
   }
 
-  Future<void> _fetchCompetitionRounds() async {
+  Future<List<RoundModel>> _fetchCompetitionRounds() async {
     try {
-      competitionRounds = await Api()
+      // This already returns List<RoundModel>, so no need to map again
+      final rounds = await Api()
           .fetchCompetitionRoundsByCompetitionId(widget.competitionId);
+      return rounds;
     } catch (e) {
       print("Failed to load competition rounds: $e");
       throw Exception('Failed to load competition rounds');
@@ -59,7 +64,7 @@ class _McqsroundState extends State<Mcqsround> {
 
   Future<void> _fetchQuestions() async {
     final fetchedQuestions = await Api().fetchCompetitionRoundQuestions(
-      widget.competitionId,
+      widget.RoundId,
       roundType: widget.roundType,
     );
 
@@ -74,11 +79,18 @@ class _McqsroundState extends State<Mcqsround> {
 
     try {
       final nextRound = competitionRounds.firstWhere(
-        (round) => round['roundNumber'] == widget.roundType + 1,
-        orElse: () => null,
+        (round) => round.roundNumber == widget.roundType + 1,
+        orElse: () => RoundModel(
+          id: 0,
+          competitionId: widget.competitionId,
+          roundNumber: 0,
+          roundType: 0,
+          isLocked: true,
+          date: '',
+        ),
       );
 
-      if (nextRound == null) {
+      if (nextRound.id == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No next round found')),
         );
@@ -86,14 +98,12 @@ class _McqsroundState extends State<Mcqsround> {
       }
 
       await Api().updateCompetitionRound(
-        roundId: nextRound['id'],
+        roundId: nextRound.id,
         competitionId: widget.competitionId,
-        roundNumber: nextRound['roundNumber'],
-        roundType: nextRound['roundType'],
+        roundNumber: nextRound.roundNumber,
+        roundType: nextRound.roundType,
         isLocked: false,
-        date: nextRound['date'] != null
-            ? DateTime.parse(nextRound['date'])
-            : null,
+        date: nextRound.date,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,10 +133,10 @@ class _McqsroundState extends State<Mcqsround> {
     if (widget.roundType == 1 && selectedAnswer != null) {
       final selectedOption = options.firstWhere(
         (option) => option["id"].toString() == selectedAnswer,
-        orElse: () => null,
+        orElse: () => <String, dynamic>{}, // Fixed here
       );
 
-      if (selectedOption != null) {
+      if (selectedOption.isNotEmpty) {
         bool isCorrect = selectedOption["isCorrect"] ?? false;
         correctAnswers[currentQuestionIndex] = isCorrect;
         userAnswers[currentQuestionIndex] = selectedAnswer;
@@ -157,36 +167,17 @@ class _McqsroundState extends State<Mcqsround> {
     });
   }
 
-  void _handleRoundCompletion() {
-    bool allCorrect =
-        widget.roundType == 1 ? correctAnswers.every((e) => e) : true;
+  void _handleRoundCompletion() async {
+    // await _submitAnswers();      // Submit answers to the API
 
-    if (allCorrect && widget.roundType == 1) {
-      _unlockNextRound();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Congratulations! All answers correct! Next round unlocked.'),
-        ),
-      );
-    } else if (widget.roundType == 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sorry, you didnt qualify for the next round.'),
-        ),
-      );
-    }
-
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CompetitionStartScreen(
-            competitionId: widget.competitionId,
-          ),
-        ),
-      );
-    });
+    // Navigate to CompetitionStartScreen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            CompetitionStartScreen(competitionId: widget.competitionId),
+      ),
+    );
   }
 
   @override
@@ -194,7 +185,7 @@ class _McqsroundState extends State<Mcqsround> {
     return Scaffold(
       backgroundColor: Colors.grey[900],
       appBar: AppBar(
-        backgroundColor: Colors.amber[800],
+        backgroundColor: Colors.amber,
         elevation: 4,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
@@ -261,7 +252,7 @@ class _McqsroundState extends State<Mcqsround> {
                         ElevatedButton(
                           onPressed: _loadInitialData,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber[700],
+                            backgroundColor: Colors.amber,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 30, vertical: 15),
                             shape: RoundedRectangleBorder(
@@ -353,7 +344,7 @@ class _McqsroundState extends State<Mcqsround> {
                                 Text(
                                   widget.roundType == 1
                                       ? 'MULTIPLE CHOICE QUESTIONS'
-                                      : 'FREE-FORM QUESTIONS',
+                                      : '',
                                   style: TextStyle(
                                     color: Colors.amber[400],
                                     fontWeight: FontWeight.bold,

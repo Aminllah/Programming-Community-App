@@ -19,8 +19,8 @@ class Rounddetail extends StatefulWidget {
 class _RounddetailState extends State<Rounddetail> {
   final List<String> roundtype = [
     'MCQS',
-    'Shuffle',
     'Speed Programming',
+    'Shuffle',
     'Buzzer'
   ];
   String? selectedroundtype;

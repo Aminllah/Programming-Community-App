@@ -22,7 +22,8 @@ class RoundModel {
         competitionId = json['competitionId'],
         roundNumber = json['roundNumber'],
         roundType = json['roundType'],
-        date = json['date'],
+        date = json['date'] ?? '',
+        // Make sure date remains a String
         isLocked = json['isLocked'] ?? true;
 
   // To JSON method
@@ -33,7 +34,7 @@ class RoundModel {
     data['roundNumber'] = roundNumber;
     data['roundType'] = roundType;
     data['date'] = date;
-    data['isLocked'] = isLocked; // Include in toJson
+    data['isLocked'] = isLocked;
     return data;
   }
 }

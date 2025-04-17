@@ -339,14 +339,16 @@ class Api {
     final url =
         '${baseUrl}CompetitionRoundQuestion/GetCompetitionRoundQuestion?competitionRoundId=$competitionRoundId${roundType != null ? '&roundType=$roundType' : ''}';
     print("API URL: $url");
+
     try {
       final response = await http.get(Uri.parse(url));
 
-      // Print the raw response body
+      // Debug print the raw response
       print("Raw API response: ${response.body}");
 
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
+
         return data
             .map((e) => {
                   "Id": e["id"],
@@ -357,9 +359,9 @@ class Api {
                   "Options": e["options"] != null
                       ? (e["options"] as List)
                           .map((opt) => {
-                                "id": opt["id"],
-                                "option": opt[
-                                    "option"], // Make sure this matches the JSON
+                                "id": opt["optionId"], // ✅ Updated to match API
+                                "option":
+                                    opt["optionText"], // ✅ Updated to match API
                                 "isCorrect": opt["isCorrect"],
                               })
                           .toList()
@@ -644,6 +646,8 @@ class Api {
           'Date': date?.toIso8601String(),
         }),
       );
+      print('Response: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (response.statusCode != 200) {
         throw Exception('Failed to update competition round: ${response.body}');
