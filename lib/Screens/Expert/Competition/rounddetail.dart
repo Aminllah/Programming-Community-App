@@ -403,9 +403,11 @@ class _RounddetailState extends State<Rounddetail> {
       case 1:
         return "MCQ";
       case 2:
-        return "Short Answer";
+        return "Speed Programming";
       case 3:
-        return "Code Snippet";
+        return "Shuffle";
+      case 4:
+        return "Buzzer";
       default:
         return "Unknown";
     }

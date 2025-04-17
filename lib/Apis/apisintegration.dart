@@ -18,7 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../Models/subjectmodel.dart';
 
 class Api {
-  String baseUrl = "http://192.168.140.156:8082/api/";
+  String baseUrl = "http://192.168.1.8:8082/api/";
 
   // User SignUp
   Future<bool> signup(Usermodel userModel) async {
@@ -620,6 +620,37 @@ class Api {
       return response;
     } else {
       throw Exception('Failed to add team');
+    }
+  }
+
+  Future<void> updateCompetitionRound({
+    required int roundId,
+    required int competitionId,
+    required int roundNumber,
+    required int roundType,
+    required bool isLocked,
+    DateTime? date,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${baseUrl}CompetitionRound/UpdateCompetitionRound/$roundId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'Id': roundId,
+          'CompetitionId': competitionId,
+          'RoundNumber': roundNumber,
+          'RoundType': roundType,
+          'IsLocked': isLocked,
+          'Date': date?.toIso8601String(),
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update competition round: ${response.body}');
+      }
+    } catch (e) {
+      print('Error updating competition round: $e');
+      rethrow;
     }
   }
 }

@@ -4,7 +4,7 @@ class RoundModel {
   int roundNumber;
   int roundType;
   String date;
-  bool isLocked; // New field added
+  bool? isLocked; // New field added
 
   // Constructor
   RoundModel({
@@ -13,7 +13,7 @@ class RoundModel {
     required this.roundNumber,
     required this.roundType,
     required this.date,
-    this.isLocked = false, // default value
+    this.isLocked = true, // default value
   });
 
   // From JSON method
@@ -23,7 +23,7 @@ class RoundModel {
         roundNumber = json['roundNumber'],
         roundType = json['roundType'],
         date = json['date'],
-        isLocked = json['isLocked'] ?? false;
+        isLocked = json['isLocked'] ?? true;
 
   // To JSON method
   Map<String, dynamic> toJson() {
