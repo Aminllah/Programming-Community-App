@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:fyp/Models/competitionModel.dart';
 import 'package:fyp/Models/competitionRoundQuestionModel.dart';
 import 'package:fyp/Models/competitionTeamModel.dart';
+import 'package:fyp/Models/competitionattemptedquestions.dart';
 import 'package:fyp/Models/competitionroundmodel.dart';
 import 'package:fyp/Models/expertisemodel.dart';
 import 'package:fyp/Models/questionmodel.dart';
@@ -18,7 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../Models/subjectmodel.dart';
 
 class Api {
-  String baseUrl = "http://192.168.1.8:8082/api/";
+  String baseUrl = "http://192.168.1.5:8082/api/";
 
   // User SignUp
   Future<bool> signup(Usermodel userModel) async {
@@ -609,6 +610,21 @@ class Api {
     return response;
   }
 
+//get team members
+  Future<int?> getTeamIdByUserId(int userId) async {
+    final response = await http.get(
+      Uri.parse('${baseUrl}TeamMember/GetTeamMemberById?id=$userId'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['teamId']; // Make sure this key matches your JSON
+    } else {
+      print('Failed to load team member. Status: ${response.statusCode}');
+      return null;
+    }
+  }
+
   //add competition team
   Future<http.Response> addcompetitionteam(
       CompetitionTeamModel competitionteam) async {
@@ -655,6 +671,26 @@ class Api {
     } catch (e) {
       print('Error updating competition round: $e');
       rethrow;
+    }
+  }
+
+  //add competition attempted questions
+  Future<http.Response> addcompetitionquestions(
+    List<CompetitionAttemptedQuestionModel> submissions,
+  ) async {
+    final url =
+        '${baseUrl}CompetitionAttemptedQuestion/AddCompetitionAttemptedQuestion';
+    try {
+      return await http.post(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: jsonEncode(submissions.map((s) => s.toJson()).toList()),
+      );
+    } catch (e) {
+      throw Exception('Submission failed: $e');
     }
   }
 }

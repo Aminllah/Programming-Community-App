@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fyp/Screens/Expert/Quiz/submittedtasks.dart';
 import 'package:fyp/Screens/Leaderboard/leaderboard.dart';
 
 class Drawer_Menu extends StatelessWidget {
@@ -104,6 +105,30 @@ class Drawer_Menu extends StatelessWidget {
                 child: const ListTile(
                   title: Text(
                     'My Competition',
+                    style: TextStyle(
+                      color: Colors.amber,
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  leading: Icon(
+                    Icons.quiz,
+                    color: Colors.amber,
+                    size: 30,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => Submittedtasks()));
+                },
+                child: const ListTile(
+                  title: Text(
+                    'Submitted Tasks',
                     style: TextStyle(
                       color: Colors.amber,
                       fontSize: 19,

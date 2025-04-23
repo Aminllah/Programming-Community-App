@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
+import 'package:fyp/Models/competitionattemptedquestions.dart';
+import 'package:fyp/Screens/Student/Competition/Rounds/roundsummary.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../Models/competitionroundmodel.dart';
 import '../../Competition_Start_Screen.dart';
@@ -29,21 +32,42 @@ class _McqsroundState extends State<Mcqsround> {
   List<bool> correctAnswers = [];
   Map<int, String?> userAnswers = {};
   Map<int, TextEditingController> textControllers = {};
-  List<dynamic> competitionRounds = [];
+  List<RoundModel> competitionRounds = [];
   bool isUnlockingNextRound = false;
+  bool isSubmitting = false;
+  int? teamId; // Added teamId variable
 
   @override
   void initState() {
     super.initState();
     _loadInitialData();
+    _loadTeamId(); // Load teamId when widget initializes
+  }
+
+  Future<void> _loadTeamId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      teamId = prefs
+          .getInt('teamId'); // Assuming you store teamId in SharedPreferences
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var controller in textControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadInitialData() async {
     try {
-      competitionRounds = await _fetchCompetitionRounds(); // Now properly typed
+      competitionRounds = await _fetchCompetitionRounds();
       await _fetchQuestions();
     } catch (e) {
-      errorMessage = "Failed to load data. Please try again.";
+      setState(() {
+        errorMessage = "Failed to load data. Please try again.";
+      });
       print("Error loading initial data: $e");
     } finally {
       setState(() => isLoading = false);
@@ -52,10 +76,8 @@ class _McqsroundState extends State<Mcqsround> {
 
   Future<List<RoundModel>> _fetchCompetitionRounds() async {
     try {
-      // This already returns List<RoundModel>, so no need to map again
-      final rounds = await Api()
+      return await Api()
           .fetchCompetitionRoundsByCompetitionId(widget.competitionId);
-      return rounds;
     } catch (e) {
       print("Failed to load competition rounds: $e");
       throw Exception('Failed to load competition rounds');
@@ -68,8 +90,76 @@ class _McqsroundState extends State<Mcqsround> {
       roundType: widget.roundType,
     );
 
-    questions = List<Map<String, dynamic>>.from(fetchedQuestions);
-    correctAnswers = List.filled(questions.length, false);
+    setState(() {
+      questions = List<Map<String, dynamic>>.from(fetchedQuestions);
+      correctAnswers = List.filled(questions.length, false);
+    });
+  }
+
+  Future<void> _submitquestions() async {
+    if (isSubmitting || teamId == null) return;
+
+    setState(() => isSubmitting = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('id');
+
+      if (userId == null) {
+        throw Exception('User not logged in');
+      }
+
+      List<CompetitionAttemptedQuestionModel> attemptedQuestions = [];
+
+      for (int i = 0; i < questions.length; i++) {
+        final question = questions[i];
+        final answer = widget.roundType == 1
+            ? userAnswers[i] ?? ''
+            : textControllers[i]?.text ?? '';
+
+        final score = widget.roundType == 1
+            ? (correctAnswers[i] ? 1 : 0) // Convert boolean to score (1 or 0)
+            : 0; // For non-MCQ questions, default score is 0
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        int? userId = prefs.getInt('id');
+        int? teamId = await Api().getTeamIdByUserId(userId!);
+        if (teamId != null) {
+          attemptedQuestions.add(CompetitionAttemptedQuestionModel(
+            competitionId: widget.competitionId,
+            competitionRoundId: widget.RoundId,
+            questionId: question['id'],
+            teamId: teamId!,
+            answer: answer,
+            score: score,
+            submissionTime: DateTime.now().toIso8601String(),
+          ));
+          Navigator.push(
+              context, MaterialPageRoute(builder: (context) => Roundsummary()));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('User not found')),
+          );
+        }
+      }
+
+      await Api().addcompetitionquestions(attemptedQuestions);
+
+      await _unlockNextRound();
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              CompetitionStartScreen(competitionId: widget.competitionId),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Submission failed: ${e.toString()}')),
+      );
+    } finally {
+      setState(() => isSubmitting = false);
+    }
   }
 
   Future<void> _unlockNextRound() async {
@@ -97,14 +187,14 @@ class _McqsroundState extends State<Mcqsround> {
         return;
       }
 
-      await Api().updateCompetitionRound(
-        roundId: nextRound.id,
-        competitionId: widget.competitionId,
-        roundNumber: nextRound.roundNumber,
-        roundType: nextRound.roundType,
-        isLocked: false,
-        date: nextRound.date,
-      );
+      // await Api().updateCompetitionRound(
+      //   roundId: nextRound.id!,
+      //   competitionId: widget.competitionId,
+      //   roundNumber: nextRound.roundNumber,
+      //   roundType: nextRound.roundType,
+      //   isLocked: false,
+      //   date: nextRound.date,
+      // );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Next round unlocked successfully!')),
@@ -127,13 +217,14 @@ class _McqsroundState extends State<Mcqsround> {
       return;
     }
 
-    final currentQuestion = questions[currentQuestionIndex];
-    final options = currentQuestion["Options"];
+    // Save current answer
+    if (widget.roundType == 1) {
+      final currentQuestion = questions[currentQuestionIndex];
+      final options = currentQuestion["Options"] as List;
 
-    if (widget.roundType == 1 && selectedAnswer != null) {
       final selectedOption = options.firstWhere(
         (option) => option["id"].toString() == selectedAnswer,
-        orElse: () => <String, dynamic>{}, // Fixed here
+        orElse: () => <String, dynamic>{},
       );
 
       if (selectedOption.isNotEmpty) {
@@ -141,21 +232,18 @@ class _McqsroundState extends State<Mcqsround> {
         correctAnswers[currentQuestionIndex] = isCorrect;
         userAnswers[currentQuestionIndex] = selectedAnswer;
       }
-    }
-
-    if (widget.roundType != 1) {
+    } else {
       userAnswers[currentQuestionIndex] =
           textControllers[currentQuestionIndex]?.text ?? '';
     }
 
-    setState(() {
-      if (currentQuestionIndex < questions.length - 1) {
+    // Move to next question or submit if last question
+    if (currentQuestionIndex < questions.length - 1) {
+      setState(() {
         currentQuestionIndex++;
         selectedAnswer = userAnswers[currentQuestionIndex];
-      } else {
-        _handleRoundCompletion();
-      }
-    });
+      });
+    }
   }
 
   void _previousQuestion() {
@@ -165,19 +253,6 @@ class _McqsroundState extends State<Mcqsround> {
         selectedAnswer = userAnswers[currentQuestionIndex];
       }
     });
-  }
-
-  void _handleRoundCompletion() async {
-    // await _submitAnswers();      // Submit answers to the API
-
-    // Navigate to CompetitionStartScreen
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            CompetitionStartScreen(competitionId: widget.competitionId),
-      ),
-    );
   }
 
   @override
@@ -449,8 +524,14 @@ class _McqsroundState extends State<Mcqsround> {
                                 ),
                               ),
                               ElevatedButton(
-                                onPressed:
-                                    isUnlockingNextRound ? null : _nextQuestion,
+                                onPressed: () {
+                                  if (currentQuestionIndex <
+                                      questions.length - 1) {
+                                    _nextQuestion();
+                                  } else {
+                                    _submitquestions();
+                                  }
+                                },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.amber[700],
                                   padding: const EdgeInsets.symmetric(
@@ -461,7 +542,7 @@ class _McqsroundState extends State<Mcqsround> {
                                   elevation: 3,
                                   shadowColor: Colors.black.withOpacity(0.3),
                                 ),
-                                child: isUnlockingNextRound
+                                child: isSubmitting || isUnlockingNextRound
                                     ? const SizedBox(
                                         width: 20,
                                         height: 20,
@@ -514,7 +595,7 @@ class _McqsroundState extends State<Mcqsround> {
           ),
         ),
         const SizedBox(height: 25),
-        if (widget.roundType == 1) _buildOptions(question["Options"]),
+        if (widget.roundType == 1) _buildOptions(question["Options"] as List),
         if (widget.roundType != 1)
           TextField(
             controller: textControllers.putIfAbsent(
