@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
-import 'package:fyp/Screens/Student/Competition/Rounds/Buzzer%20Round/Buzzer_round.dart';
-import 'package:fyp/Screens/Student/Competition/Rounds/MCQS/MCQS.dart';
-import 'package:fyp/Screens/Student/Competition/Rounds/Speed%20Programming/SpeedPrograming.dart';
 import 'package:fyp/Screens/Student/Dashboard.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../Models/competitionroundmodel.dart';
+import 'Rounds/Buzzer Round/Buzzer_round.dart';
+import 'Rounds/MCQS/MCQS.dart';
 import 'Rounds/Shuffle Round/Suffle_Round.dart';
+import 'Rounds/Speed Programming/SpeedPrograming.dart';
 
 class CompetitionStartScreen extends StatefulWidget {
   final int competitionId;
@@ -25,6 +26,39 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
     super.initState();
     roundsFuture =
         Api().fetchCompetitionRoundsByCompetitionId(widget.competitionId);
+  }
+
+  void navigateToRound(RoundModel round) {
+    if (round.roundType == 1) {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => Mcqsround(
+                    competitionId: round.competitionId,
+                    RoundId: round.id!,
+                    roundType: round.roundType,
+                  )));
+    } else if (round.roundType == 2) {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => Speedprograming(
+                    competitionid: round.competitionId,
+                    RoundId: round.id!,
+                    roundType: round.roundType,
+                  )));
+    } else if (round.roundType == 3) {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => SuffleRound(
+                    competitionId: round.competitionId,
+                    competitionRoundId: round.id!,
+                    roundType: round.roundType,
+                  )));
+    } else if (round.roundType == 4) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => BuzzerRound()));
+    }
   }
 
   @override
@@ -77,77 +111,88 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
                 SizedBox(height: 16),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: rounds.length,
-                    itemBuilder: (context, index) {
-                      final round = rounds[index];
-                      final icon = getRoundIcon(round.roundType ?? 0);
+                      itemCount: rounds.length,
+                      itemBuilder: (context, index) {
+                        final round = rounds[index];
+                        final icon = getRoundIcon(round.roundType ?? 0);
+                        final isLocked = index != 0;
 
-                      // Always allow navigation, regardless of lock status
-                      return GestureDetector(
-                        onTap: () {
-                          if (round.roundType == 1) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => Mcqsround(
-                                  competitionId: round.competitionId,
-                                  RoundId: round.id!,
-                                  roundType: round.roundType,
-                                ),
-                              ),
-                            );
-                          } else if (round.roundType == 2) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => Speedprograming(
-                                  competitionid: round.competitionId,
-                                  RoundId: round.id!,
-                                  roundType: round.roundType,
-                                ),
-                              ),
-                            );
-                          } else if (round.roundType == 3) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => SuffleRound(
-                                  competitionRoundId: round.id!,
-                                  roundType: round.roundType,
-                                ),
-                              ),
-                            );
-                          } else if (round.roundType == 4) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => BuzzerRound(),
-                              ),
-                            );
-                          }
-                        },
-                        child: Card(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          margin: EdgeInsets.symmetric(vertical: 8),
-                          elevation: 4,
-                          child: ListTile(
-                            leading: Icon(icon, color: Colors.amber, size: 30),
-                            title: Text(
-                              getRoundTitle(round.roundType ?? 0),
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
+                        return GestureDetector(
+                          onTap: () async {
+                            if (!isLocked) {
+                              // First round: allow directly
+                              navigateToRound(round);
+                            } else {
+                              final prefs =
+                                  await SharedPreferences.getInstance();
+                              final userId = prefs.getInt('id');
+
+                              if (userId == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("User not found")),
+                                );
+                                return;
+                              }
+
+                              final teamId =
+                                  await Api().getTeamIdByUserId(userId);
+                              if (teamId == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Team ID not found")),
+                                );
+                                return;
+                              }
+
+                              final previousRound =
+                                  index > 0 ? snapshot.data![index - 1] : null;
+                              if (previousRound == null) return;
+
+                              final isQualified = await Api()
+                                  .checkUserQualified(
+                                      teamId, previousRound.id!);
+
+                              if (isQualified) {
+                                navigateToRound(round);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(
+                                          "You are not qualified for this round")),
+                                );
+                              }
+                            }
+                          },
+                          child: Card(
+                            color: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
                             ),
-                            subtitle: Text(
-                                "Tap to start"), // Always show "Tap to start"
+                            margin: EdgeInsets.symmetric(vertical: 8),
+                            elevation: 4,
+                            child: ListTile(
+                              leading:
+                                  Icon(icon, color: Colors.black, size: 30),
+                              title: Text(
+                                getRoundTitle(round.roundType ?? 0),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              subtitle: Text(
+                                isLocked ? "Locked" : "Tap to start",
+                                style: TextStyle(color: Colors.black),
+                              ),
+                              trailing: isLocked
+                                  ? Icon(Icons.lock, color: Colors.black)
+                                  : null,
+                              // No icon for first (unlocked) round
+                              enabled: !isLocked,
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      }),
                 ),
               ],
             );

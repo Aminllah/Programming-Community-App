@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
+import 'package:fyp/Screens/Expert/Quiz/TaskInfo.dart';
 import 'package:fyp/Screens/Expert/Quiz/quizcategory.dart';
-import 'package:fyp/Screens/Expert/Quiz/taskquestions.dart';
 import 'package:fyp/Screens/Expert/expertdashboard.dart';
 
 class Tasks extends StatefulWidget {
@@ -60,8 +60,8 @@ class _TasksState extends State<Tasks> {
                               Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => Taskquestions(
-                                            roundId: snapshot.data![index].id,
+                                      builder: (context) => Taskinfo(
+                                            taskId: snapshot.data![index].id,
                                           )));
                             },
                             child: Card(

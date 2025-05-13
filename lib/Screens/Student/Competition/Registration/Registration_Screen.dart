@@ -14,7 +14,7 @@ import '../../../../Models/teamModel.dart';
 class CompetitionRegistrationScreen extends StatefulWidget {
   final int competitionId;
 
-  CompetitionRegistrationScreen({super.key, required this.competitionId});
+  const CompetitionRegistrationScreen({super.key, required this.competitionId});
 
   @override
   State<CompetitionRegistrationScreen> createState() =>
@@ -28,46 +28,47 @@ class _CompetitionRegistrationScreenState
 
   bool showTeamFields = false;
   List<String> teamMembers = [];
-  List<Usermodel> userList = []; // List to hold fetched users
-  int? teamId; // Variable to store the teamId
-  int? userId; // Variable to store the current logged-in userId
+  List<Usermodel> userList = [];
+  int? teamId;
+  int? userId;
 
   @override
   void initState() {
     super.initState();
-    _getUserId(); // Fetch the logged-in userId when the screen is initialized
+    _getUserId();
   }
 
-  // Fetch userId from SharedPreferences
   void _getUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      userId =
-          prefs.getInt('userId'); // Assuming the userId is stored as an int
+      userId = prefs.getInt('userId');
     });
   }
 
-  // Add team member function when button is clicked
-  void addTeamMember(Usermodel user) async {
+  Future<void> addTeamMember(Usermodel user) async {
+    if (teamId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please create a team first")),
+      );
+      return;
+    }
+
     try {
       var response = await Api().addTeamMemebers(TeamMemberModel(
         teamId: teamId!,
-        userId: user.id!, // Use the selected user's id
+        userId: user.id ?? 0,
       ));
 
-      // Check for successful response with 201 Created status code
       if (response.statusCode == 201) {
-        var responseBody = jsonDecode(response.body); // Parse the JSON response
-        print('API Response: $responseBody'); // Debugging the response
+        var responseBody = jsonDecode(response.body);
 
-        // If teamId and userId exist in the response, add the member
         if (responseBody['teamId'] == teamId &&
             responseBody['userId'] == user.id) {
           setState(() {
-            teamMembers.add(user.firstname!); // Add the user's name to the team
+            teamMembers.add(user.firstname ?? "Team Member");
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Member added to the team")),
+            const SnackBar(content: Text("Member added to the team")),
           );
         } else {
           throw Exception('Failed to add member: Unexpected response');
@@ -76,275 +77,350 @@ class _CompetitionRegistrationScreenState
         throw Exception('Failed to add member: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to add member: $e")),
+        SnackBar(content: Text("Failed to add member: ${e.toString()}")),
       );
     }
   }
 
-  // Search users by name
-  void searchUsers() async {
-    String name = _memberController.text.trim();
-    if (name.isNotEmpty) {
-      try {
-        // Fetch single user instead of a list
-        Usermodel user = await Api().fetchUserByName(name);
-        print('Fetched user: ${user.firstname}'); // Debugging the response
+  Future<void> searchUsers() async {
+    if (teamId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please create a team first")),
+      );
+      return;
+    }
 
-        // Update the userList with a single user wrapped in a list
+    String name = _memberController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter a name to search")),
+      );
+      return;
+    }
+
+    try {
+      List<Usermodel> users = await Api().fetchUsersByName(name);
+
+      // Filter only students and match full name
+      List<Usermodel> students = users.where((user) {
+        final fullName =
+            "${user.firstname ?? ''} ${user.lastname ?? ''}".toLowerCase();
+        final searchName = name.toLowerCase();
+        return user.role == 3 && fullName.contains(searchName);
+      }).toList();
+
+      if (students.isNotEmpty) {
         setState(() {
-          userList = [user];
+          userList = students;
         });
-      } catch (e) {
+      } else {
+        setState(() {
+          userList.clear();
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to fetch user: $e")),
+          const SnackBar(content: Text("No student found with this name")),
         );
       }
+    } catch (e) {
+      setState(() {
+        userList.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to fetch users: ${e.toString()}")),
+      );
     }
   }
 
-  // Handle the registration of the team
-  void handleRegister() async {
-    if (teamMembers.isNotEmpty) {
-      try {
-        var response = await Api().addcompetitionteam(CompetitionTeamModel(
-          competitionId: widget.competitionId,
+  Future<void> handleRegister() async {
+    if (teamId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please create a team first")),
+      );
+      return;
+    }
+
+    if (teamMembers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Add at least one team member")),
+      );
+      return;
+    }
+
+    try {
+      var response = await Api().addcompetitionteam(CompetitionTeamModel(
+        competitionId: widget.competitionId,
+        teamId: teamId!,
+      ));
+
+      if (response.statusCode == 201) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) => const RegistrationComplete_Screen()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to register team")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error during registration: ${e.toString()}")),
+      );
+    }
+  }
+
+  Future<void> addTeam() async {
+    final teamName = _teamNameController.text.trim();
+    if (teamName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter team name')),
+      );
+      return;
+    }
+
+    if (userId == null) {
+      // Retry fetching userId
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      userId = prefs.getInt('id'); // Make sure this matches your actual key
+      if (userId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not logged in')),
+        );
+        return;
+      }
+    }
+
+    try {
+      int? newTeamId = await Api().addTeam(TeamModel(teamName: teamName));
+
+      if (newTeamId != null) {
+        setState(() {
+          teamId = newTeamId;
+          showTeamFields = true;
+        });
+
+        // Add the current user as the first team member
+        var response = await Api().addTeamMemebers(TeamMemberModel(
           teamId: teamId!,
+          userId: userId!,
         ));
 
         if (response.statusCode == 201) {
-          // Print debugging information
-          print('Team registered successfully: ${response.body}');
-
-          // Navigate to the RegistrationComplete_Screen after successful registration
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const RegistrationComplete_Screen(),
-            ),
-          );
+          // Get current user's name - you'll need to implement this
+          String? currentUserName = await _getCurrentUserName();
+          setState(() {
+            teamMembers.add(currentUserName ?? "You");
+          });
         } else {
-          // Handle non-201 responses
-          print('Failed to register team: ${response.statusCode}');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Failed to register team")),
+            const SnackBar(content: Text('Failed to add creator to team')),
           );
         }
-      } catch (e) {
-        print('Error during registration: $e');
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error during registration: $e")),
+          const SnackBar(content: Text('Team not registered')),
         );
       }
-    } else {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Add at least one team member")),
+        SnackBar(content: Text('Failed to add team: ${e.toString()}')),
       );
     }
   }
 
-  // Function to add a team
-  void addTeam() async {
-    if (_teamNameController.text.trim().isNotEmpty) {
-      try {
-        int? newTeamId = await Api().addTeam(
-          TeamModel(teamName: _teamNameController.text),
-        );
-        if (newTeamId != null) {
-          setState(() {
-            teamId = newTeamId; // Store the teamId here
-            showTeamFields = true;
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Team not registered')),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add team: $e')),
-        );
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter team name')),
-      );
+// Add this helper method to get current user's name
+  Future<String?> _getCurrentUserName() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? firstName = prefs.getString('firstname');
+    String? lastName = prefs.getString('lastname');
+    print('First Name: $firstName, Last Name: $lastName'); // Add this
+
+    if (firstName != null && lastName != null) {
+      return '$firstName $lastName';
+    } else if (firstName != null) {
+      return firstName;
     }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
         backgroundColor: Colors.amber,
-        title: const Text(
-          'Competition Registration',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Competition Registration',
+            style: TextStyle(color: Colors.black)),
         centerTitle: true,
-        leading: GestureDetector(
-          onTap: () {
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          onPressed: () {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                   builder: (context) => const Student_Dashboard()),
             );
           },
-          child: const Icon(Icons.arrow_back_ios, color: Colors.black),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter Your Team Name:',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Info(
-              label_name: 'Team Name',
-              controller: _teamNameController,
-            ),
-            const SizedBox(height: 10),
-            if (!showTeamFields)
-              SizedBox(
-                width: double.infinity,
-                height: 45,
-                child: ElevatedButton(
-                  onPressed: addTeam, // Call addTeam() when button is pressed
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.amber),
-                  child: const Text(
-                    'Add',
-                    style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1),
-                  ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionTitle(title: 'Enter Your Team Name:'),
+              const SizedBox(height: 10),
+              Info(label_name: 'Team Name', controller: _teamNameController),
+              const SizedBox(height: 15),
+              if (!showTeamFields)
+                CustomButton(
+                  title: 'Create Team',
+                  onPressed: addTeam,
                 ),
-              ),
-            const SizedBox(height: 20),
-            if (showTeamFields) ...[
-              const Text(
-                'Enter Team Member Registration Number:',
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: Info(
-                      label_name: 'Registration number',
-                      controller: _memberController,
+              if (showTeamFields) ...[
+                const SizedBox(height: 30),
+                const SectionTitle(title: 'Add Team Member:'),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Info(
+                          label_name: 'Enter Name to search',
+                          controller: _memberController),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: searchUsers, // Trigger search
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber,
-                      minimumSize: Size(50, 50),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: searchUsers,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        minimumSize: const Size(50, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Icon(Icons.search, color: Colors.black),
                     ),
-                    child: const Icon(Icons.search, color: Colors.black),
-                  )
-                ],
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Search Results:',
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: userList.isEmpty
-                    ? const Text(
-                        "No users found.",
-                        style: TextStyle(color: Colors.grey),
-                      )
-                    : ListView.builder(
+                  ],
+                ),
+                const SizedBox(height: 25),
+                if (userList.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionTitle(title: 'Search Results:'),
+                      const SizedBox(height: 10),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         itemCount: userList.length,
                         itemBuilder: (context, index) {
-                          return ListTile(
-                            leading:
-                                const Icon(Icons.person, color: Colors.white),
-                            title: Text(
-                              userList[index].firstname!,
-                              // Display the user's first name
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            subtitle: Text(
-                              userList[index]
-                                  .regNum!, // Display registration number
-                              style: const TextStyle(color: Colors.grey),
-                            ),
-                            trailing: ElevatedButton(
-                              onPressed: () =>
-                                  addTeamMember(userList[index]), // Add to team
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.amber,
-                              ),
-                              child: const Text(
-                                'Add to Team',
-                                style: TextStyle(color: Colors.black),
+                          final user = userList[index];
+                          return Card(
+                            color: Colors.grey[900],
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15)),
+                            child: ListTile(
+                              leading:
+                                  const Icon(Icons.person, color: Colors.white),
+                              title: Text(
+                                  "${user.firstname} ${user.lastname}" ??
+                                      'No name',
+                                  style: const TextStyle(color: Colors.white)),
+                              subtitle: Text(
+                                  user.regNum ?? 'No registration number',
+                                  style: const TextStyle(color: Colors.grey)),
+                              trailing: ElevatedButton(
+                                onPressed: () => addTeamMember(user),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: const Text('Add',
+                                    style: TextStyle(color: Colors.black)),
                               ),
                             ),
                           );
                         },
                       ),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                'Added Members:',
-                style:
-                    TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                child: teamMembers.isEmpty
-                    ? const Text(
-                        "No members added yet.",
-                        style: TextStyle(color: Colors.grey),
-                      )
-                    : ListView.builder(
+                    ],
+                  ),
+                const SizedBox(height: 30),
+                if (teamMembers.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionTitle(title: 'Team Members:'),
+                      const SizedBox(height: 10),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         itemCount: teamMembers.length,
                         itemBuilder: (context, index) {
                           return ListTile(
-                            leading:
-                                const Icon(Icons.person, color: Colors.white),
-                            title: Text(
-                              teamMembers[index],
-                              style: const TextStyle(color: Colors.white),
-                            ),
+                            leading: const Icon(Icons.person_outline,
+                                color: Colors.white),
+                            title: Text(teamMembers[index],
+                                style: const TextStyle(color: Colors.white)),
                           );
                         },
                       ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: handleRegister,
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.amber),
-                  child: const Text(
-                    'Register',
-                    style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2),
+                    ],
                   ),
+                const SizedBox(height: 30),
+                CustomButton(
+                  title: 'Register Team',
+                  onPressed: handleRegister,
                 ),
-              ),
-            ]
-          ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SectionTitle extends StatelessWidget {
+  final String title;
+
+  const SectionTitle({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+          color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+    );
+  }
+}
+
+class CustomButton extends StatelessWidget {
+  final String title;
+  final VoidCallback onPressed;
+
+  const CustomButton({super.key, required this.title, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.amber,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        ),
+        child: Text(
+          title,
+          style: const TextStyle(
+              color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -361,12 +437,17 @@ class Info extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         label: Text(label_name),
-        labelStyle:
-            TextStyle(color: Colors.grey[700], fontWeight: FontWeight.bold),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
+        labelStyle: TextStyle(color: Colors.grey[400]),
+        enabledBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Colors.amber),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Colors.amber, width: 2),
+          borderRadius: BorderRadius.circular(15),
         ),
       ),
     );

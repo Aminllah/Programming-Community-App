@@ -15,7 +15,7 @@ class Questionbank extends StatefulWidget {
 class _QuestionbankState extends State<Questionbank> {
   List<SubjectModel> subjects = [];
   List<String> Difficultylevel = ['Easy', 'Medium', 'Hard'];
-  List<String> QuestionType = ['MCQS', 'Sentence'];
+  List<String> QuestionType = ['MCQS', 'Sentence', 'Shuffle Code'];
   String? selectedsubjects;
   String? selectedlevel;
   String? selectedtype;
@@ -152,6 +152,21 @@ class _QuestionbankState extends State<Questionbank> {
                             )),
                   );
                 } else {
+                  if (selectedtype == "Sentence") {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => Sentencequestions(
+                                subject: selectedsubjects!,
+                                topic: 8,
+                                difficaultylevel:
+                                    getDifficultyLevel(selectedlevel),
+                                type: getquestiontype(selectedtype.toString())
+                                    .toString(),
+                              )),
+                    );
+                  }
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -205,6 +220,8 @@ class _QuestionbankState extends State<Questionbank> {
         return 2;
       case "Sentence":
         return 1;
+      case "Shuffle Code":
+        return 3;
       default:
         return 0;
     }

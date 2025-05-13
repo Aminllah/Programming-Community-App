@@ -1,3 +1,5 @@
+import 'package:fyp/Models/questionmodel.dart';
+
 class CompetitionAttemptedQuestionModel {
   int id;
   int competitionId;
@@ -7,6 +9,7 @@ class CompetitionAttemptedQuestionModel {
   String answer;
   int score;
   String submissionTime;
+  QuestionModel? question;
 
   CompetitionAttemptedQuestionModel({
     this.id = 0,
@@ -17,6 +20,7 @@ class CompetitionAttemptedQuestionModel {
     required this.answer,
     required this.score,
     required this.submissionTime,
+    this.question,
   });
 
   @override
@@ -35,6 +39,9 @@ class CompetitionAttemptedQuestionModel {
       answer: json["answer"] ?? "",
       score: json["score"] ?? 0,
       submissionTime: json["submissionTime"] ?? "",
+      question: json["question"] != null
+          ? QuestionModel.fromJson(json["question"])
+          : null,
     );
   }
 
@@ -49,6 +56,7 @@ class CompetitionAttemptedQuestionModel {
       "answer": answer,
       "score": score,
       "submissionTime": submissionTime,
+      "Question": question?.toJson(),
     };
   }
 }

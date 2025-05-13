@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fyp/Screens/Expert/Quiz/submittedtasks.dart';
-import 'package:fyp/Screens/Leaderboard/leaderboard.dart';
 
 class Drawer_Menu extends StatelessWidget {
   const Drawer_Menu({super.key});
@@ -80,8 +78,8 @@ class Drawer_Menu extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () {
-                  Navigator.pushReplacement(context,
-                      MaterialPageRoute(builder: (context) => Leaderboard()));
+                  // Navigator.pushReplacement(context,
+                  //     MaterialPageRoute(builder: (context) => Leaderboard()));
                 },
                 child: const ListTile(
                   title: Text(
@@ -121,10 +119,10 @@ class Drawer_Menu extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => Submittedtasks()));
+                  // Navigator.push(
+                  //     context,
+                  //     MaterialPageRoute(
+                  //         builder: (context) => Submittedtasks()));
                 },
                 child: const ListTile(
                   title: Text(

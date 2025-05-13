@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:fyp/Screens/Expert/Quiz/taskquestions.dart';
-import 'package:fyp/Screens/Expert/expertdashboard.dart';
 
 import '../../../Apis/apisintegration.dart';
 
 class Submittedtasks extends StatefulWidget {
-  const Submittedtasks({super.key});
+  final int taskid;
+
+  const Submittedtasks({super.key, required this.taskid});
 
   @override
   State<Submittedtasks> createState() => _SubmittedtasksState();
@@ -22,19 +22,10 @@ class _SubmittedtasksState extends State<Submittedtasks> {
           "Submitted Tasks",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
-        leading: IconButton(
-            onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => Expertdashboard()));
-            },
-            icon: Icon(
-              Icons.arrow_back_ios,
-              color: Colors.black,
-            )),
       ),
       body: SafeArea(
           child: FutureBuilder(
-              future: Api().fetchalltasks(),
+              future: Api().getSubmittedTasks(widget.taskid),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return Padding(
@@ -49,9 +40,9 @@ class _SubmittedtasksState extends State<Submittedtasks> {
                               Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => Taskquestions(
-                                            roundId: snapshot.data![index].id,
-                                          )));
+                                      builder: (context) => Submittedtasks(
+                                          taskid:
+                                              snapshot.data![index].taskId)));
                             },
                             child: Card(
                               child: Padding(
@@ -68,14 +59,14 @@ class _SubmittedtasksState extends State<Submittedtasks> {
                                       height: 9,
                                     ),
                                     Text(
-                                      "Starting Date:${snapshot.data![index].startDate}",
+                                      "Submission Date:${snapshot.data![index].submissionDate}",
                                       style: TextStyle(fontSize: 12),
                                     ),
                                     SizedBox(
                                       height: 8,
                                     ),
                                     Text(
-                                      "Ending Date:${snapshot.data![index].endDate}",
+                                      "Submission Date:${snapshot.data![index].submissionTime}",
                                       style: TextStyle(fontSize: 12),
                                     ),
                                   ],

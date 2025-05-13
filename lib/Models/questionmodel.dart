@@ -58,14 +58,16 @@ class QuestionModel {
 
 // Model for options
 class OptionModel {
+  int id;
   String option;
   bool isCorrect;
 
-  OptionModel({required this.option, required this.isCorrect});
+  OptionModel({this.id = 0, required this.option, required this.isCorrect});
 
   // Convert JSON to object
   static OptionModel fromJson(Map<String, dynamic> json) {
     return OptionModel(
+      id: json["id"] ?? 0,
       option: json["option"] ?? "",
       isCorrect: json["isCorrect"] ?? false,
     );
@@ -74,6 +76,7 @@ class OptionModel {
   // Convert object to JSON
   Map<String, dynamic> toJson() {
     return {
+      "id": id,
       "option": option,
       "isCorrect": isCorrect,
     };

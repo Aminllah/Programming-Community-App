@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
 import 'package:fyp/Models/competitionattemptedquestions.dart';
@@ -5,7 +7,7 @@ import 'package:fyp/Screens/Student/Competition/Rounds/roundsummary.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../Models/competitionroundmodel.dart';
-import '../../Competition_Start_Screen.dart';
+import '../../../../../Models/roundResultModel.dart';
 
 class Mcqsround extends StatefulWidget {
   final int competitionId;
@@ -36,6 +38,7 @@ class _McqsroundState extends State<Mcqsround> {
   bool isUnlockingNextRound = false;
   bool isSubmitting = false;
   int? teamId; // Added teamId variable
+  Map<int, int?> selectedOptions = {};
 
   @override
   void initState() {
@@ -96,153 +99,170 @@ class _McqsroundState extends State<Mcqsround> {
     });
   }
 
+// Updated _submitquestions method
   Future<void> _submitquestions() async {
-    if (isSubmitting || teamId == null) return;
+    if (isSubmitting) return;
 
     setState(() => isSubmitting = true);
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+        ),
+      ),
+    );
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getInt('id');
 
-      if (userId == null) {
-        throw Exception('User not logged in');
-      }
+      if (userId == null) throw Exception('User not logged in');
+
+      final teamId = await Api().getTeamIdByUserId(userId);
+      if (teamId == null) throw Exception('User is not part of any team');
 
       List<CompetitionAttemptedQuestionModel> attemptedQuestions = [];
+      int totalScore = 0; // To accumulate the total score
 
-      for (int i = 0; i < questions.length; i++) {
-        final question = questions[i];
-        final answer = widget.roundType == 1
-            ? userAnswers[i] ?? ''
-            : textControllers[i]?.text ?? '';
+      for (var question in questions) {
+        String answer = '';
+        int score = 0;
+        final questionId = question['QuestionId'] ?? question['id'];
 
-        final score = widget.roundType == 1
-            ? (correctAnswers[i] ? 1 : 0) // Convert boolean to score (1 or 0)
-            : 0; // For non-MCQ questions, default score is 0
-        final SharedPreferences prefs = await SharedPreferences.getInstance();
-        int? userId = prefs.getInt('id');
-        int? teamId = await Api().getTeamIdByUserId(userId!);
-        if (teamId != null) {
-          attemptedQuestions.add(CompetitionAttemptedQuestionModel(
-            competitionId: widget.competitionId,
-            competitionRoundId: widget.RoundId,
-            questionId: question['id'],
-            teamId: teamId!,
-            answer: answer,
-            score: score,
-            submissionTime: DateTime.now().toIso8601String(),
-          ));
-          Navigator.push(
-              context, MaterialPageRoute(builder: (context) => Roundsummary()));
+        if (question['Options'] != null && question['Options'].isNotEmpty) {
+          List<dynamic> options = question['Options'];
+          int? selectedOptionId = selectedOptions[questionId];
+
+          if (selectedOptionId != null) {
+            answer = selectedOptionId.toString();
+
+            // Find the selected option
+            var selectedOption = options.firstWhere(
+              (opt) => opt['id'] == selectedOptionId,
+              orElse: () => <String, dynamic>{},
+            );
+            // Score checking with better safety
+            var isCorrectValue = selectedOption['isCorrect'];
+            if (isCorrectValue == true ||
+                isCorrectValue.toString().toLowerCase() == 'true') {
+              score = 1;
+            } else {
+              score = 0;
+            }
+          } else {
+            answer = "No option selected";
+            score = 0;
+          }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('User not found')),
-          );
+          // Handle text input (sentence-type) questions
+          answer = textControllers[questions.indexOf(question)]?.text ?? '';
+          score = 0; // Assuming text answers don't contribute to score
         }
+
+        totalScore += score; // Add to total score
+
+        attemptedQuestions.add(CompetitionAttemptedQuestionModel(
+          competitionId: widget.competitionId,
+          competitionRoundId: widget.RoundId,
+          questionId: questionId,
+          teamId: teamId,
+          answer: answer,
+          score: score,
+          submissionTime: DateTime.now().toIso8601String(),
+        ));
       }
 
+      if (attemptedQuestions.isEmpty) throw Exception('No questions to submit');
+
+      // Submit the questions first
       await Api().addcompetitionquestions(attemptedQuestions);
 
-      await _unlockNextRound();
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              CompetitionStartScreen(competitionId: widget.competitionId),
-        ),
+      // Now create the round result with the calculated total score
+      final roundResult = Roundresultmodel(
+        competitionRoundId: widget.RoundId,
+        teamId: teamId,
+        competitionId: widget.competitionId,
+        score: totalScore,
+        isQualified: false, // Example qualification logic - modify as needed
       );
+
+      final response = await Api().createRoundResult(roundResult);
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Roundsummary(
+              roundid: widget.RoundId,
+              teamid: teamId,
+            ),
+          ),
+        );
+      } else {
+        final errorMessage = jsonDecode(response.body)?['message'] ??
+            "Failed to save round result";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     } catch (e) {
+      if (mounted) Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Submission failed: ${e.toString()}')),
+        SnackBar(
+          content: Text('Submission failed: ${e.toString()}'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     } finally {
       setState(() => isSubmitting = false);
     }
   }
 
-  Future<void> _unlockNextRound() async {
-    if (isUnlockingNextRound) return;
+  void _nextQuestion() {
+    final currentQuestion = questions[currentQuestionIndex];
+    final questionId = currentQuestion['QuestionId'] ?? currentQuestion['id'];
 
-    setState(() => isUnlockingNextRound = true);
-
-    try {
-      final nextRound = competitionRounds.firstWhere(
-        (round) => round.roundNumber == widget.roundType + 1,
-        orElse: () => RoundModel(
-          id: 0,
-          competitionId: widget.competitionId,
-          roundNumber: 0,
-          roundType: 0,
-          isLocked: true,
-          date: '',
-        ),
-      );
-
-      if (nextRound.id == 0) {
+    if (widget.roundType == 1) {
+      if (selectedOptions[questionId] == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No next round found')),
+          const SnackBar(content: Text('Please select an answer')),
         );
         return;
       }
 
-      // await Api().updateCompetitionRound(
-      //   roundId: nextRound.id!,
-      //   competitionId: widget.competitionId,
-      //   roundNumber: nextRound.roundNumber,
-      //   roundType: nextRound.roundType,
-      //   isLocked: false,
-      //   date: nextRound.date,
-      // );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Next round unlocked successfully!')),
-      );
-    } catch (e) {
-      print("Error unlocking next round: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to unlock next round: ${e.toString()}')),
-      );
-    } finally {
-      setState(() => isUnlockingNextRound = false);
-    }
-  }
-
-  void _nextQuestion() {
-    if (widget.roundType == 1 && selectedAnswer == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an answer')),
-      );
-      return;
-    }
-
-    // Save current answer
-    if (widget.roundType == 1) {
-      final currentQuestion = questions[currentQuestionIndex];
+      // Save the selected answer
       final options = currentQuestion["Options"] as List;
-
       final selectedOption = options.firstWhere(
-        (option) => option["id"].toString() == selectedAnswer,
+        (option) => option["id"] == selectedOptions[questionId],
         orElse: () => <String, dynamic>{},
       );
 
       if (selectedOption.isNotEmpty) {
         bool isCorrect = selectedOption["isCorrect"] ?? false;
         correctAnswers[currentQuestionIndex] = isCorrect;
-        userAnswers[currentQuestionIndex] = selectedAnswer;
+        userAnswers[currentQuestionIndex] =
+            selectedOptions[questionId].toString();
       }
-    } else {
-      userAnswers[currentQuestionIndex] =
-          textControllers[currentQuestionIndex]?.text ?? '';
     }
 
     // Move to next question or submit if last question
     if (currentQuestionIndex < questions.length - 1) {
       setState(() {
         currentQuestionIndex++;
-        selectedAnswer = userAnswers[currentQuestionIndex];
+        // No need to set selectedAnswer as we're using selectedOptions map
       });
+    } else {
+      _submitquestions();
     }
   }
 
@@ -635,24 +655,28 @@ class _McqsroundState extends State<Mcqsround> {
   }
 
   Widget _buildOptions(List options) {
+    final currentQuestion = questions[currentQuestionIndex];
+    final questionId = currentQuestion['QuestionId'] ?? currentQuestion['id'];
+
     return Column(
       children: options.map<Widget>((option) {
+        final optionId = option["id"];
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: selectedAnswer == option["id"].toString()
+              color: selectedOptions[questionId] == optionId
                   ? Colors.amber.withOpacity(0.2)
                   : Colors.grey[800],
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: selectedAnswer == option["id"].toString()
+                color: selectedOptions[questionId] == optionId
                     ? Colors.amber[700]!
                     : Colors.grey[700]!,
                 width: 1.5,
               ),
             ),
-            child: RadioListTile<String>(
+            child: RadioListTile<int>(
               title: Text(
                 option["option"] ?? '',
                 style: const TextStyle(
@@ -660,20 +684,16 @@ class _McqsroundState extends State<Mcqsround> {
                   fontSize: 16,
                 ),
               ),
-              value: option["id"].toString(),
-              groupValue: selectedAnswer,
+              value: optionId,
+              groupValue: selectedOptions[questionId],
               onChanged: (val) {
                 setState(() {
-                  selectedAnswer = val;
+                  selectedOptions[questionId] = val;
                 });
               },
               activeColor: Colors.amber[700],
               contentPadding: const EdgeInsets.symmetric(horizontal: 10),
               dense: true,
-              tileColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
             ),
           ),
         );

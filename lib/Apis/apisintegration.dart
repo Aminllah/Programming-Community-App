@@ -7,6 +7,7 @@ import 'package:fyp/Models/competitionattemptedquestions.dart';
 import 'package:fyp/Models/competitionroundmodel.dart';
 import 'package:fyp/Models/expertisemodel.dart';
 import 'package:fyp/Models/questionmodel.dart';
+import 'package:fyp/Models/roundResultModel.dart';
 import 'package:fyp/Models/submittedtaskmodel.dart';
 import 'package:fyp/Models/taskModel.dart';
 import 'package:fyp/Models/taskquestionsmodel.dart';
@@ -19,7 +20,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../Models/subjectmodel.dart';
 
 class Api {
-  String baseUrl = "http://192.168.1.5:8082/api/";
+  String baseUrl = "http://192.168.10.8:8082/api/";
 
   // User SignUp
   Future<bool> signup(Usermodel userModel) async {
@@ -49,9 +50,14 @@ class Api {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         if (responseData.containsKey('id')) {
-          final int id = responseData['id']; // Convert to String if necessary
+          final int id = responseData['id'];
+          final String firstname = responseData['firstname'] ?? '';
+          final String lastname = responseData['lastname'] ?? '';
+
           final SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setInt('id', id);
+          await prefs.setString('firstname', firstname);
+          await prefs.setString('lastname', lastname);
           return response;
         } else {
           throw Exception('ID not found in response');
@@ -65,20 +71,31 @@ class Api {
   }
 
 //get all Users
-  Future<Usermodel> fetchUserByName(String name) async {
+  Future<List<Usermodel>> fetchUsersByName(String name) async {
     try {
       final response =
           await http.get(Uri.parse('${baseUrl}User/GetUser?name=$name'));
 
       if (response.statusCode == 200) {
         var jsonResponse = jsonDecode(response.body);
-        return Usermodel.fromJson(
-            jsonResponse); // Directly parse the single user object
+
+        // If API returns a list of users
+        if (jsonResponse is List) {
+          if (jsonResponse.isEmpty) return [];
+          return jsonResponse
+              .map<Usermodel>((json) => Usermodel.fromJson(json))
+              .toList();
+        }
+
+        // If API returns a single user object
+        return [Usermodel.fromJson(jsonResponse)];
+      } else if (response.statusCode == 404) {
+        return [];
       } else {
         throw Exception('Failed to load user: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Failed to fetch user: $e');
+      throw Exception('Failed to fetch users: $e');
     }
   }
 
@@ -234,6 +251,18 @@ class Api {
   Future<List<CompetitionModel>> fetchallcompetitions() async {
     final response =
         await http.get(Uri.parse('${baseUrl}Competition/GetAllCompetitions'));
+    if (response.statusCode == 200) {
+      List<dynamic> jsonList = jsonDecode(response.body);
+      return jsonList.map((json) => CompetitionModel.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load Competitions');
+    }
+  }
+
+//get competitions by user id
+  Future<List<CompetitionModel>> getcompetitionbyuserid(int userid) async {
+    final response = await http.get(Uri.parse(
+        '${baseUrl}Competition/GetCompetitionbyuserid?userId=$userid'));
     if (response.statusCode == 200) {
       List<dynamic> jsonList = jsonDecode(response.body);
       return jsonList.map((json) => CompetitionModel.fromJson(json)).toList();
@@ -508,7 +537,21 @@ class Api {
     }
   }
 
-  // Update your addsubmittedtask method
+//get submitted tasks by task id
+  Future<List<SubmittedTaskModel>> getSubmittedTasks(int taskId) async {
+    final response = await http.get(
+      Uri.parse(
+          '${baseUrl}SubmittedTask/GetSubmittedTask?taskId=$taskId'), // <-- Correct Query Parameters
+    );
+    if (response.statusCode == 200) {
+      List<dynamic> jsonData = jsonDecode(response.body);
+      return jsonData.map((item) => SubmittedTaskModel.fromJson(item)).toList();
+    } else {
+      throw Exception('Failed to get submitted tasks');
+    }
+  }
+
+  // add your addsubmittedtask method
   Future<http.Response> addsubmittedtask(
     List<SubmittedTaskModel> submissions,
   ) async {
@@ -524,6 +567,44 @@ class Api {
       );
     } catch (e) {
       throw Exception('Submission failed: $e');
+    }
+  }
+
+//update submitted task
+  Future<SubmittedTaskModel?> updateSubmittedTaskScore(
+      SubmittedTaskModel submittedtask) async {
+    final url = '${baseUrl}SubmittedTask/UpdateSubmittedTaskScore';
+
+    // Send the PUT request with the task id and score as query parameters
+    try {
+      final response = await http.put(
+        Uri.parse('${url}?id=${submittedtask.id}&score=${submittedtask.score}'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      );
+
+      // Log the response status and body
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Since the response body is a simple string, just check it
+        if (response.body == "Score updated successfully.") {
+          print('Score updated successfully.');
+          return submittedtask; // Return the updated task or handle accordingly
+        } else {
+          print('Unexpected response: ${response.body}');
+          throw Exception('Unexpected response: ${response.body}');
+        }
+      } else {
+        // Handle non-200 responses
+        print('Error Response: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to update task score');
+      }
+    } catch (e) {
+      print('Exception occurred: $e');
+      throw Exception('Failed to update task score due to network error');
     }
   }
 
@@ -610,17 +691,55 @@ class Api {
     return response;
   }
 
+  Future<TeamModel?> getTeamById(int teamId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${baseUrl}Team/$teamId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return TeamModel.fromJson(json.decode(response.body));
+      } else if (response.statusCode == 404) {
+        return null; // Team not found
+      } else {
+        throw Exception('Failed to load team: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to connect to API: $e');
+    }
+  }
+
 //get team members
   Future<int?> getTeamIdByUserId(int userId) async {
-    final response = await http.get(
-      Uri.parse('${baseUrl}TeamMember/GetTeamMemberById?id=$userId'),
-    );
+    try {
+      final url = Uri.parse('${baseUrl}TeamMember/user/$userId');
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['teamId']; // Make sure this key matches your JSON
-    } else {
-      print('Failed to load team member. Status: ${response.statusCode}');
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer YOUR_TOKEN', // Add if needed
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Try both parsing methods
+        try {
+          // If API returns just the integer value
+          final teamId = int.tryParse(response.body);
+          return teamId;
+        } catch (e) {
+          final data = jsonDecode(response.body);
+          final teamId = data['teamId'] as int?;
+          return teamId;
+        }
+      } else if (response.statusCode == 404) {
+        return null;
+      } else {
+        return null;
+      }
+    } catch (e) {
       return null;
     }
   }
@@ -641,6 +760,7 @@ class Api {
     }
   }
 
+//update competition round
   Future<void> updateCompetitionRound({
     required int roundId,
     required int competitionId,
@@ -680,17 +800,164 @@ class Api {
   ) async {
     final url =
         '${baseUrl}CompetitionAttemptedQuestion/AddCompetitionAttemptedQuestion';
+
     try {
-      return await http.post(
+      // 1. Print the data being sent
+      final requestBody =
+          jsonEncode(submissions.map((s) => s.toJson()).toList());
+
+      // 2. Make the request
+      final response = await http.post(
         Uri.parse(url),
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
         },
-        body: jsonEncode(submissions.map((s) => s.toJson()).toList()),
+        body: requestBody,
       );
+      return response;
     } catch (e) {
       throw Exception('Submission failed: $e');
+    }
+  }
+
+  Future<List<CompetitionAttemptedQuestionModel>>
+      getCompetitionSubmittedQuestions(int roundId, int teamId) async {
+    final url = Uri.parse(
+        "${baseUrl}CompetitionAttemptedQuestion/byroundid/$roundId/team/$teamId");
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      List<dynamic> data = json.decode(response.body);
+      return data
+          .map((e) => CompetitionAttemptedQuestionModel.fromJson(e))
+          .toList();
+    } else {
+      throw Exception("Failed to load submitted questions");
+    }
+  }
+
+  //round result
+  Future<http.Response> createRoundResult(Roundresultmodel roundResult) async {
+    final url = Uri.parse('${baseUrl}RoundResult/CreateRoundResult');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(roundResult.toJson()),
+      );
+
+      return response;
+    } catch (e) {
+      return http.Response('Error: $e', 500);
+    }
+  }
+
+  Future<List<Roundresultmodel>> getRoundResultsForTeamAndRound(
+      {required int teamId, required int roundId}) async {
+    final url = Uri.parse(
+        '$baseUrl/RoundResult/GetByTeamAndRound?teamId=$teamId&roundId=$roundId');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((e) => Roundresultmodel.fromJson(e)).toList();
+      } else {
+        throw Exception('Server responded with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to load round results: $e');
+    }
+  }
+
+  //get round result
+  Future<List<Roundresultmodel>> getRoundResultByRoundId(int roundId) async {
+    final uri = Uri.parse('${baseUrl}RoundResult/GetRoundResults/$roundId');
+
+    try {
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+
+        // Parse each result and map it to Roundresultmodel
+        return data.map((json) => Roundresultmodel.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load round results: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
+  }
+
+  //update round result
+  Future<void> updateRoundResult({
+    required Roundresultmodel roundResult,
+  }) async {
+    final url = Uri.parse(
+        '${baseUrl}RoundResult/UpdateRoundResult?id=${roundResult.id}');
+
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+
+    final body = jsonEncode(roundResult.toJson());
+
+    try {
+      final response = await http.put(
+        url,
+        headers: headers,
+        body: body,
+      );
+
+      if (response.statusCode == 204) {
+        // Success - No content returned
+        return;
+      } else if (response.statusCode == 404) {
+        throw Exception('Round result not found');
+      } else {
+        throw Exception(
+            'Failed to update round result. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error updating round result: $e');
+    }
+  }
+
+//checking user in round result table
+  Future<bool> checkUserQualified(int teamId, int previousRoundId) async {
+    final response = await http.get(Uri.parse(
+      '${baseUrl}RoundResult/GetByTeamAndRound?teamId=$teamId&roundId=$previousRoundId',
+    ));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      if (data.isNotEmpty) {
+        return data[0]['isQualified'] == true;
+      }
+    }
+
+    return false; // Not qualified or no record
+  }
+
+  Future<List<Roundresultmodel>> fetchRoundResultsByRoundId(int roundId) async {
+    final url = Uri.parse(
+        '${baseUrl}RoundResult/GetRoundResult?competitionRoundId=$roundId');
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonData = json.decode(response.body);
+      return jsonData.map((e) => Roundresultmodel.fromJson(e)).toList();
+    } else {
+      throw Exception('Failed to load round results');
     }
   }
 }
