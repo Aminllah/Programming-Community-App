@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:fyp/Screens/Leaderboard/studentLeaderboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../Apis/apisintegration.dart';
 import '../../../../../Models/competitionModel.dart';
-import '../../Competition_Start_Screen.dart';
 
-class Enrolledcompetitions extends StatefulWidget {
-  const Enrolledcompetitions({super.key});
+class Studentcompetitions extends StatefulWidget {
+  const Studentcompetitions({super.key});
 
   @override
-  State<Enrolledcompetitions> createState() => _EnrolledcompetitionsState();
+  State<Studentcompetitions> createState() => _StudentcompetitionsState();
 }
 
-class _EnrolledcompetitionsState extends State<Enrolledcompetitions> {
+class _StudentcompetitionsState extends State<Studentcompetitions> {
   late Future<List<CompetitionModel>> unregisteredCompetitions;
 
   Future<List<CompetitionModel>> _loadUnregisteredCompetitions() async {
@@ -34,7 +34,7 @@ class _EnrolledcompetitionsState extends State<Enrolledcompetitions> {
         backgroundColor: Colors.amber,
         centerTitle: true,
         title: Text(
-          'Enrolled Competitions',
+          'Student Competitions',
           style: TextStyle(
               color: Colors.black, fontSize: 20, fontWeight: FontWeight.w500),
         ),
@@ -72,8 +72,8 @@ class _EnrolledcompetitionsState extends State<Enrolledcompetitions> {
                         Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (context) => CompetitionStartScreen(
-                                      competitionId: competition.competitionId,
+                                builder: (context) => Studentleaderboard(
+                                      CompetitionId: competition.competitionId,
                                     )));
                       },
                       child: Container(

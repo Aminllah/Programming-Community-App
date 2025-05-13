@@ -3,6 +3,7 @@ import 'package:fyp/Apis/apisintegration.dart';
 import 'package:fyp/Models/competitionModel.dart';
 import 'package:fyp/Models/taskModel.dart';
 import 'package:fyp/Screens/Admin/admin.dart';
+import 'package:fyp/Screens/Leaderboard/studentCompetitions.dart';
 import 'package:fyp/Screens/Student/Competition/All%20Competitions/mycompetition.dart';
 import 'package:fyp/Screens/Student/Quiz/quizzes.dart';
 import 'package:fyp/Widgets/Drawer.dart';
@@ -100,10 +101,10 @@ class _Student_DashboardState extends State<Student_Dashboard> {
                 ),
                 GestureDetector(
                     onTap: () {
-                      // Navigator.push(
-                      //     context,
-                      //     MaterialPageRoute(
-                      //         builder: (context) => Leaderboard()));
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => Studentcompetitions()));
                     },
                     child: LeaderboardContainer()),
                 SizedBox(

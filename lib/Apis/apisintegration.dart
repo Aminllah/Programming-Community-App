@@ -960,4 +960,19 @@ class Api {
       throw Exception('Failed to load round results');
     }
   }
+
+  Future<List<Roundresultmodel>> fetchRoundResultsByCompetitionId(
+      int competitionId) async {
+    final url = Uri.parse(
+        '${baseUrl}RoundResult/GetRoundResult?competitionId=$competitionId');
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonData = json.decode(response.body);
+      return jsonData.map((e) => Roundresultmodel.fromJson(e)).toList();
+    } else {
+      throw Exception('Failed to load round results');
+    }
+  }
 }
