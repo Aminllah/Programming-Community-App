@@ -29,7 +29,12 @@ class Roundresultmodel {
         isQualified = json['isQualified'] ?? false,
         teamModel = json['teamModel'] != null
             ? TeamModel.fromJson(json['teamModel'])
-            : null; // Handle missing teamModel
+            : null;
+
+  @override
+  String toString() {
+    return 'RoundResult{teamId: $teamId, score: $score, teamName: ${teamModel?.teamName}';
+  }
 
   // ✅ Method to convert object to JSON
   Map<String, dynamic> toJson() {

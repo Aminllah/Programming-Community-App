@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
 import 'package:fyp/Screens/Admin/admin.dart';
 import 'package:fyp/Screens/Auth/signup.dart';
+import 'package:fyp/Screens/Expert/expertdashboard.dart';
+import 'package:fyp/Screens/Student/Dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -59,18 +63,49 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: ElevatedButton(
                   onPressed: () async {
-                    var response = await Api().login(
-                        emailController.text.toString(),
-                        passwordController.text.toString());
-                    if (response.statusCode == 200) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => AdminScreen()),
-                      );
-                    } else {
+                    try {
+                      var response = await Api().login(
+                          emailController.text.toString(),
+                          passwordController.text.toString());
+
+                      if (response.statusCode == 200) {
+                        final responseData = jsonDecode(response.body);
+                        final role =
+                            responseData['role'] ?? 0; // Get role from response
+
+                        if (role == 2) {
+                          // Expert role (from your JSON example)
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => Expertdashboard()),
+                          );
+                        } else if (role == 3) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => Student_Dashboard()),
+                          );
+                        } else {
+                          // Default to student screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => AdminScreen()),
+                          );
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Invalid Email or Password'),
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Invalid Email or Password'),
+                          content: Text('Login Error: ${e.toString()}'),
                           duration: Duration(seconds: 3),
                         ),
                       );

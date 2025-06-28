@@ -154,6 +154,7 @@ class _RoundsummaryState extends State<Roundsummary> {
               }
 
               final attempts = snapshot.data!;
+
               return ListView.builder(
                 physics: const BouncingScrollPhysics(),
                 itemCount: attempts.length,
@@ -161,10 +162,12 @@ class _RoundsummaryState extends State<Roundsummary> {
                   final attempt = attempts[index];
                   final question = attempt.question;
                   final isType1 = question?.type == 1;
+                  final isType3 = question?.type == 3;
+                  print('Question Out Put${question?.output?.output}');
 
                   // For type 1 questions, use the direct answer
                   // For other types, find the selected option
-                  final selectedOption = isType1
+                  final selectedOption = isType1 || isType3
                       ? null
                       : question?.options?.firstWhere(
                           (option) => option.id.toString() == attempt.answer,
@@ -172,7 +175,7 @@ class _RoundsummaryState extends State<Roundsummary> {
                               id: 0, option: "Not answered", isCorrect: false),
                         );
 
-                  final correctOption = isType1
+                  final correctOption = isType1 || isType3
                       ? null
                       : question?.options?.firstWhere(
                           (option) => option.isCorrect,
@@ -182,9 +185,24 @@ class _RoundsummaryState extends State<Roundsummary> {
                               isCorrect: false),
                         );
 
-                  final isCorrect = isType1 ? null : selectedOption?.isCorrect;
+                  final isCorrect =
+                      isType1 || isType3 ? null : selectedOption?.isCorrect;
                   final formattedTime = DateFormat('MMM dd, yyyy - hh:mm a')
                       .format(DateTime.parse(attempt.submissionTime));
+
+                  // For shuffle questions, split the answer back into lines
+                  final userAnswerLines = isType3
+                      ? attempt.answer
+                          .replaceAll(r'\\n', '\n')
+                          .replaceAll(r'\n', '\n')
+                          .split('\n')
+                      : [];
+                  final correctAnswerLines = isType3
+                      ? question?.text
+                          ?.replaceAll(r'\\n', '\n')
+                          .replaceAll(r'\n', '\n')
+                          .split('\n')
+                      : [];
 
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
@@ -222,7 +240,11 @@ class _RoundsummaryState extends State<Roundsummary> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
-                                      question?.text ?? 'No question text',
+                                      isType3
+                                          ? (question?.output?.output ??
+                                              'Arrange the code in correct order')
+                                          : (question?.text ??
+                                              'No question text'),
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
@@ -273,6 +295,183 @@ class _RoundsummaryState extends State<Roundsummary> {
                                   style: const TextStyle(
                                     fontSize: 15,
                                     color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    'Score: ${attempt.score}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ] else if (isType3) ...[
+                                // Display for shuffle-type questions (type 3)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: attempt.score > 0
+                                        ? Colors.green.withOpacity(0.1)
+                                        : Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: attempt.score > 0
+                                          ? Colors.green.withOpacity(0.3)
+                                          : Colors.red.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        attempt.score > 0
+                                            ? Icons.check
+                                            : Icons.close,
+                                        color: attempt.score > 0
+                                            ? Colors.green[600]
+                                            : Colors.red[600],
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        attempt.score > 0
+                                            ? 'Correct'
+                                            : 'Incorrect',
+                                        style: TextStyle(
+                                          color: attempt.score > 0
+                                              ? Colors.green[600]
+                                              : Colors.red[600],
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.withOpacity(0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          'Score: ${attempt.score}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // Your arrangement
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Your arrangement:',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[400],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      for (final line in userAnswerLines)
+                                        if (line.trim().isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 4),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Icon(
+                                                  Icons.reorder,
+                                                  color: Colors.amber,
+                                                  size: 20,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    line,
+                                                    style: const TextStyle(
+                                                        color: Colors.white),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                // Correct arrangement
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[800],
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.green.withOpacity(0.5),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Correct arrangement:',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[400],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      for (final line
+                                          in correctAnswerLines ?? [])
+                                        if (line.trim().isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 4),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Icon(
+                                                  Icons.check_circle,
+                                                  color: Colors.green,
+                                                  size: 20,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    line,
+                                                    style: const TextStyle(
+                                                        color: Colors.white),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                    ],
                                   ),
                                 ),
                               ] else ...[

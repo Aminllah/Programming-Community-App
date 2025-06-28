@@ -28,20 +28,35 @@ class _AddquestionsState extends State<Addquestions> {
   Set<int> selectedQuestionIds = {};
   String? selectedType;
   String? selectedDifficulty;
+  List<QuestionModel> allQuestions = [];
 
-  void toggleSelection(int questionId, bool? isChecked) async {
+  void toggleSelection(QuestionModel question, bool? isChecked) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    setState(() {
-      if (isChecked == true) {
-        selectedQuestionIds.add(questionId);
-      } else {
-        selectedQuestionIds.remove(questionId);
+    if (isChecked == true) {
+      if (widget.sourcePage == SourcePage.Competitionround &&
+          question.repeated > 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Question ID ${question.id} has reached its repeat limit and cannot be added.'),
+          ),
+        );
+        return;
       }
-    });
+      setState(() {
+        selectedQuestionIds.add(question.id);
+      });
+    } else {
+      setState(() {
+        selectedQuestionIds.remove(question.id);
+      });
+    }
 
-    prefs.setStringList('selected_question_ids',
-        selectedQuestionIds.map((id) => id.toString()).toList());
+    prefs.setStringList(
+      'selected_question_ids',
+      selectedQuestionIds.map((id) => id.toString()).toList(),
+    );
   }
 
   List<QuestionModel> filterQuestions(List<QuestionModel> questions) {
@@ -76,12 +91,10 @@ class _AddquestionsState extends State<Addquestions> {
       ),
       body: Column(
         children: [
-          // Filter Bar
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
               children: [
-                // Type Filter Dropdown
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     value: selectedType ?? '',
@@ -105,7 +118,6 @@ class _AddquestionsState extends State<Addquestions> {
                   ),
                 ),
                 SizedBox(width: 10),
-                // Difficulty Filter Dropdown
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     value: selectedDifficulty ?? '',
@@ -130,7 +142,6 @@ class _AddquestionsState extends State<Addquestions> {
               ],
             ),
           ),
-          // Question List
           Expanded(
             child: FutureBuilder<List<QuestionModel>>(
               future: Api().getAllQuestionswithoptions(),
@@ -142,7 +153,8 @@ class _AddquestionsState extends State<Addquestions> {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
                 if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-                  final filteredQuestions = filterQuestions(snapshot.data!);
+                  allQuestions = snapshot.data!;
+                  final filteredQuestions = filterQuestions(allQuestions);
 
                   return ListView.builder(
                     itemCount: filteredQuestions.length,
@@ -166,7 +178,7 @@ class _AddquestionsState extends State<Addquestions> {
                               value: isSelected,
                               onChanged: (bool? value) {
                                 setStateCheckbox(() {
-                                  toggleSelection(question.id, value);
+                                  toggleSelection(question, value);
                                 });
                               },
                               activeColor: Colors.green,
@@ -219,10 +231,27 @@ class _AddquestionsState extends State<Addquestions> {
                           id: null,
                           competitionRoundId: widget.roundId,
                           questionId: id));
-              print("response:${response.body}");
-              print("response code:${response.statusCode}");
 
-              if (response.statusCode != 200 && response.statusCode != 201) {
+              if (response.statusCode == 200 || response.statusCode == 201) {
+                if (widget.sourcePage == SourcePage.Competitionround) {
+                  final question = allQuestions.firstWhere(
+                    (q) => q.id == id,
+                    orElse: () => QuestionModel(
+                      id: 0,
+                      subjectCode: '',
+                      topicId: 0,
+                      userId: 0,
+                      difficulty: 0,
+                      repeated: 0,
+                      text: 'Default',
+                      type: 0,
+                    ),
+                  );
+
+                  final newRepeated = question.repeated + 1;
+                  await Api().updateQuestionRepeated(question.id, newRepeated);
+                }
+              } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Failed to add questions.')),
                 );

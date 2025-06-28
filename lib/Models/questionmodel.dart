@@ -7,78 +7,116 @@ class QuestionModel {
   String text;
   int type;
   int repeated;
-  List<OptionModel>? options; // List of options, default is null
+  List<OptionModel>? options;
+  OutputModel? output;
 
-  QuestionModel({
-    this.id = 0,
-    required this.subjectCode,
-    required this.topicId,
-    required this.userId,
-    required this.difficulty,
-    required this.text,
-    required this.type,
-    this.repeated = 0,
-    this.options, // Default is null
-  });
+  QuestionModel(
+      {this.id = 0,
+      this.subjectCode = '',
+      this.topicId = 0,
+      this.userId = 0,
+      this.difficulty = 0,
+      required this.text,
+      required this.type,
+      this.repeated = 0,
+      this.options,
+      this.output});
 
-  // Convert JSON to object
   static QuestionModel fromJson(Map<String, dynamic> json) {
     return QuestionModel(
-      id: json["id"] ?? 0,
-      subjectCode: json["subjectCode"] ?? "",
-      topicId: json["topicId"] ?? 0,
-      userId: json["userId"] ?? 0,
-      difficulty: json["difficulty"] ?? 0,
-      text: json["text"] ?? "",
-      type: json["type"] ?? 0,
-      repeated: json["repeated"] ?? 0,
-      options: json["options"] != null
-          ? (json["options"] as List)
-              .map((option) => OptionModel.fromJson(option))
+      id: json['questionId'] ?? json['QuestionId'] ?? json['id'] ?? 0,
+      subjectCode: json['subjectCode'] ?? '',
+      topicId: json['topicId'] ?? 0,
+      userId: json['userId'] ?? 0,
+      difficulty: json['difficulty'] ?? 0,
+      text: json['questionText'] ?? json['QuestionText'] ?? json['text'] ?? '',
+      type: json['questionType'] ?? json['QuestionType'] ?? json['type'] ?? 0,
+      repeated: json['repeated'] ?? 0,
+      options: json['options'] != null
+          ? (json['options'] as List)
+              .map((opt) => OptionModel.fromJson(opt))
               .toList()
-          : null, // If no options provided, keep it null
+          : null,
+      output:
+          json['output'] != null ? OutputModel.fromJson(json['output']) : null,
     );
   }
 
-  // Convert object to JSON
   Map<String, dynamic> toJson() {
-    return {
-      "id": id,
-      "subjectCode": subjectCode,
-      "topicId": topicId,
-      "userId": userId,
-      "difficulty": difficulty,
-      "text": text,
-      "type": type,
-      "repeated": repeated,
-      "options": options?.map((option) => option.toJson()).toList(),
+    final data = {
+      'SubjectCode': subjectCode,
+      'TopicId': topicId,
+      'UserId': userId,
+      'Difficulty': difficulty,
+      'Text': text,
+      'Type': type,
+      'Repeated': repeated,
     };
+
+    // Add options only if type is MCQ (2) and options are provided
+    if (type == 2 && options != null && options!.isNotEmpty) {
+      data['Options'] = options!.map((o) => o.toJson()).toList();
+    }
+
+    // Add output only if type is code-output (3)
+    if (type == 3 && output != null) {
+      data['Output'] = output!.output;
+    }
+
+    return data;
   }
 }
 
-// Model for options
 class OptionModel {
   int id;
   String option;
   bool isCorrect;
 
-  OptionModel({this.id = 0, required this.option, required this.isCorrect});
+  OptionModel({
+    this.id = 0,
+    required this.option,
+    required this.isCorrect,
+  });
 
-  // Convert JSON to object
   static OptionModel fromJson(Map<String, dynamic> json) {
     return OptionModel(
-      id: json["id"] ?? 0,
-      option: json["option"] ?? "",
-      isCorrect: json["isCorrect"] ?? false,
+      id: json['optionId'] ?? json['OptionId'] ?? json['id'] ?? 0,
+      option: json['optionText'] ?? json['OptionText'] ?? json['option'] ?? '',
+      isCorrect: json['isCorrect'] ?? json['IsCorrect'] ?? false,
     );
   }
 
-  // Convert object to JSON
   Map<String, dynamic> toJson() {
     return {
-      "id": id,
-      "option": option,
-      "isCorrect": isCorrect,
+      'option': option,
+      'isCorrect': isCorrect,
+    };
+  }
+}
+
+class OutputModel {
+  int id;
+  String output;
+  int? questionid;
+
+  OutputModel({
+    this.id = 0,
+    required this.output,
+    this.questionid,
+  });
+
+  static OutputModel fromJson(Map<String, dynamic> json) {
+    return OutputModel(
+      id: json['id'] ?? json['OptionId'] ?? 0,
+      output: json['output'] ?? json['OutputText'] ?? '',
+      questionid: json['questionid'] ?? json['QuestionId'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'OutputText': output,
+      'QuestionId': questionid,
     };
   }
 }

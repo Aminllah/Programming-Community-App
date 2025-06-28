@@ -1,4 +1,5 @@
 import 'package:fyp/Models/questionmodel.dart';
+import 'package:fyp/Models/teamModel.dart';
 
 class CompetitionAttemptedQuestionModel {
   int id;
@@ -10,18 +11,19 @@ class CompetitionAttemptedQuestionModel {
   int score;
   String submissionTime;
   QuestionModel? question;
+  TeamModel? team;
 
-  CompetitionAttemptedQuestionModel({
-    this.id = 0,
-    required this.competitionId,
-    required this.competitionRoundId,
-    required this.questionId,
-    required this.teamId,
-    required this.answer,
-    required this.score,
-    required this.submissionTime,
-    this.question,
-  });
+  CompetitionAttemptedQuestionModel(
+      {this.id = 0,
+      required this.competitionId,
+      required this.competitionRoundId,
+      required this.questionId,
+      required this.teamId,
+      required this.answer,
+      required this.score,
+      required this.submissionTime,
+      this.question,
+      this.team});
 
   @override
   String toString() {
@@ -42,6 +44,7 @@ class CompetitionAttemptedQuestionModel {
       question: json["question"] != null
           ? QuestionModel.fromJson(json["question"])
           : null,
+      team: json["team"] != null ? TeamModel.fromJson(json["team"]) : null,
     );
   }
 
@@ -57,6 +60,7 @@ class CompetitionAttemptedQuestionModel {
       "score": score,
       "submissionTime": submissionTime,
       "Question": question?.toJson(),
+      "Team": team?.toJson(),
     };
   }
 }

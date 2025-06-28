@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,11 +30,22 @@ class _SpeedprogramingState extends State<Speedprograming> {
   Map<int, int?> selectedOptions = {};
   Map<int, TextEditingController> sentenceControllers = {};
   int currentQuestionIndex = 0;
+  Timer? _questionTimer;
+  int _remainingSeconds = 30; // 30 seconds per question
 
   @override
   void initState() {
     super.initState();
     _initializeData();
+    _startQuestionTimer();
+  }
+
+  @override
+  void dispose() {
+    _questionTimer?.cancel();
+    // Dispose all text controllers
+    sentenceControllers.values.forEach((controller) => controller.dispose());
+    super.dispose();
   }
 
   Future<void> _initializeData() async {
@@ -63,6 +76,72 @@ class _SpeedprogramingState extends State<Speedprograming> {
     }
   }
 
+  void _startQuestionTimer() {
+    _questionTimer?.cancel();
+    setState(() => _remainingSeconds = 30);
+
+    _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        if (_remainingSeconds > 0) {
+          _remainingSeconds--;
+        } else {
+          _onTimerComplete();
+        }
+      });
+    });
+  }
+
+  void _onTimerComplete() {
+    _questionTimer?.cancel();
+    if (currentQuestionIndex == questions.length - 1) {
+      _submitquestions();
+    } else {
+      setState(() => currentQuestionIndex++);
+      _startQuestionTimer();
+    }
+  }
+
+  void _goToNextQuestion() {
+    if (currentQuestionIndex == questions.length - 1) {
+      _submitquestions();
+    } else {
+      setState(() => currentQuestionIndex++);
+      _startQuestionTimer();
+    }
+  }
+
+  void _goToPreviousQuestion() {
+    if (currentQuestionIndex > 0) {
+      setState(() => currentQuestionIndex--);
+      _startQuestionTimer();
+    }
+  }
+
+  Widget _buildTimerWidget() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: _remainingSeconds <= 10 ? Colors.red[900] : Colors.grey[800],
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.timer, color: Colors.white, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            '$_remainingSeconds',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,6 +159,12 @@ class _SpeedprogramingState extends State<Speedprograming> {
         ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.amber),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(child: _buildTimerWidget()),
+          ),
+        ],
       ),
       body: isLoading
           ? Center(
@@ -143,11 +228,7 @@ class _SpeedprogramingState extends State<Speedprograming> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: () {
-                              setState(() {
-                                currentQuestionIndex--;
-                              });
-                            },
+                            onPressed: _goToPreviousQuestion,
                             child: const Text(
                               "PREVIOUS",
                               style: TextStyle(
@@ -167,15 +248,7 @@ class _SpeedprogramingState extends State<Speedprograming> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () {
-                            if (currentQuestionIndex == questions.length - 1) {
-                              _submitquestions();
-                            } else {
-                              setState(() {
-                                currentQuestionIndex++;
-                              });
-                            }
-                          },
+                          onPressed: _goToNextQuestion,
                           child: Text(
                             currentQuestionIndex == questions.length - 1
                                 ? "SUBMIT"
@@ -323,6 +396,7 @@ class _SpeedprogramingState extends State<Speedprograming> {
 
   Future<void> _submitquestions() async {
     if (isSubmitting) return;
+    _questionTimer?.cancel();
 
     setState(() => isSubmitting = true);
 
@@ -332,8 +406,15 @@ class _SpeedprogramingState extends State<Speedprograming> {
 
       if (userId == null) throw Exception('User not logged in');
 
-      final teamId = await Api().getTeamIdByUserId(userId);
-      if (teamId == null) throw Exception('User is not part of any team');
+      final teamIds = await Api().getTeamIdsByUserId(userId);
+      if (teamIds.isEmpty) throw Exception('User is not part of any team');
+
+      final teamId = await Api().getUserTeamFromTeamList(
+        teamIds: teamIds,
+        userId: userId,
+      );
+      if (teamId == null)
+        throw Exception('No valid team found for this competition');
 
       List<CompetitionAttemptedQuestionModel> attemptedQuestions = [];
 
@@ -350,11 +431,9 @@ class _SpeedprogramingState extends State<Speedprograming> {
             answer = selectedOptionId.toString();
             final correctOption = options.firstWhere(
               (opt) => opt['isCorrect'] == true,
-              orElse: () =>
-                  <String, dynamic>{}, // Return empty map instead of null
+              orElse: () => <String, dynamic>{},
             );
 
-            // Check if we found a correct option and if the selected option matches
             if (correctOption.isNotEmpty &&
                 correctOption['id'] == selectedOptionId) {
               score = 1;
@@ -394,15 +473,16 @@ class _SpeedprogramingState extends State<Speedprograming> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-            builder: (context) => Roundsummary(
-                  roundid: widget.RoundId,
-                  teamid: teamId,
-                )),
+          builder: (context) => Roundsummary(
+            roundid: widget.RoundId,
+            teamid: teamId,
+          ),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Submission failed: $e'),
+          content: Text('Submission failed: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );

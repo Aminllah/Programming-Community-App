@@ -57,7 +57,14 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
                     roundType: round.roundType,
                   )));
     } else if (round.roundType == 4) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => BuzzerRound()));
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => BuzzerRoundScreen(
+                    competitionId: round.competitionId,
+                    RoundId: round.id!,
+                    roundType: round.roundType,
+                  )));
     }
   }
 
@@ -120,7 +127,6 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
                         return GestureDetector(
                           onTap: () async {
                             if (!isLocked) {
-                              // First round: allow directly
                               navigateToRound(round);
                             } else {
                               final prefs =
@@ -134,11 +140,30 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
                                 return;
                               }
 
-                              final teamId =
-                                  await Api().getTeamIdByUserId(userId);
-                              if (teamId == null) {
+                              final teamIds =
+                                  await Api().getTeamIdsByUserId(userId);
+                              print("User's Team IDs: $teamIds");
+
+                              if (teamIds.isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Team ID not found")),
+                                  SnackBar(
+                                      content:
+                                          Text("No teams found for the user")),
+                                );
+                                return;
+                              }
+
+                              final userTeamId =
+                                  await Api().getUserTeamFromTeamList(
+                                teamIds: teamIds,
+                                userId: userId,
+                              );
+
+                              if (userTeamId == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(
+                                          "You are not assigned to any team for this round")),
                                 );
                                 return;
                               }
@@ -147,9 +172,11 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
                                   index > 0 ? snapshot.data![index - 1] : null;
                               if (previousRound == null) return;
 
-                              final isQualified = await Api()
-                                  .checkUserQualified(
-                                      teamId, previousRound.id!);
+                              final isQualified =
+                                  await Api().checkUserQualified(
+                                userTeamId,
+                                previousRound.id!,
+                              );
 
                               if (isQualified) {
                                 navigateToRound(round);

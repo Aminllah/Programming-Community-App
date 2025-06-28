@@ -3,6 +3,8 @@ import 'package:fyp/Apis/apisintegration.dart';
 import 'package:fyp/Screens/Expert/QuestionBank/questionbank.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../Models/questionmodel.dart';
+
 class Mcqsquestion extends StatefulWidget {
   final String subject, type;
   final int topic, difficaultylevel;
@@ -161,52 +163,96 @@ class _McqsquestionState extends State<Mcqsquestion> {
               SizedBox(height: 20),
               GestureDetector(
                 onTap: () async {
+                  // 1. Get user ID
                   final SharedPreferences pref =
                       await SharedPreferences.getInstance();
-                  int? userId = pref.getInt('id');
+                  final userId = pref.getInt('id');
 
                   if (userId == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content:
-                            Text("User ID not found. Please log in again.")));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content:
+                              Text("User ID not found. Please log in again.")),
+                    );
                     return;
                   }
 
-                  if (QuestiontextController.text.isEmpty ||
-                      options.isEmpty ||
-                      selectedCorrectOptionIndex == null) {
+                  // 2. Validate inputs
+                  if (QuestiontextController.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("All fields are required.")));
+                      const SnackBar(
+                          content: Text("Question text is required.")),
+                    );
                     return;
                   }
+
+                  if (options.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text("At least one option is required.")),
+                    );
+                    return;
+                  }
+
+                  if (selectedCorrectOptionIndex == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text("Please select a correct option.")),
+                    );
+                    return;
+                  }
+
+                  // 3. Mark correct option
                   options[selectedCorrectOptionIndex!]['isCorrect'] = true;
 
-                  Map<String, dynamic> questionData = {
-                    'id': 0,
-                    'subjectCode': widget.subject,
-                    'topicId': widget.topic,
-                    'userId': userId,
-                    'difficulty': widget.difficaultylevel,
-                    'text': QuestiontextController.text,
-                    'type': int.parse(widget.type),
-                    'options': options,
-                  };
+                  // 4. Create QuestionModel
+                  final question = QuestionModel(
+                    subjectCode: widget.subject,
+                    topicId: widget.topic,
+                    userId: userId,
+                    difficulty: widget.difficaultylevel,
+                    text: QuestiontextController.text,
+                    type: int.parse(widget.type),
+                    options: options
+                        .map((o) => OptionModel(
+                              option: o['option'], // ✅ fix here
+                              isCorrect: o['isCorrect'],
+                            ))
+                        .toList(),
+                  );
 
-                  final result =
-                      await Api().addQuestionWithOptions(questionData);
+                  try {
+                    // 5. Call API
+                    final result = await Api().addQuestionWithOptions(question);
 
-                  if (result['success']) {
+                    // 6. Handle response
+                    if (result['success'] == true) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(result['message'] ??
+                                'Question added successfully!')),
+                      );
+
+                      // 7. Clear fields
+                      QuestiontextController.clear();
+                      optionController.clear();
+
+                      setState(() {
+                        options.clear();
+                        selectedCorrectOptionIndex = null;
+                      });
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                result['message'] ?? 'Failed to add question')),
+                      );
+                    }
+                  } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(result['message'])));
-                    QuestiontextController.clear();
-                    optionController.clear();
-                    setState(() {
-                      options.clear();
-                      selectedCorrectOptionIndex = null;
-                    });
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(result['message'])));
+                      SnackBar(
+                          content: Text('Error occurred: ${e.toString()}')),
+                    );
                   }
                 },
                 child: Container(

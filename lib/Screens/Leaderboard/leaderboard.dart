@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fyp/Models/teamModel.dart';
 
 import '../../Apis/apisintegration.dart';
 import '../../Models/roundResultModel.dart';
@@ -15,7 +14,6 @@ class Leaderboard extends StatefulWidget {
 
 class _LeaderboardState extends State<Leaderboard> {
   late Future<List<Roundresultmodel>> _futureResults;
-  late Future<TeamModel> _teamname;
 
   bool _isUpdating = false;
   int? _currentlyUpdatingTeam;
@@ -33,14 +31,27 @@ class _LeaderboardState extends State<Leaderboard> {
   }
 
   Future<List<Roundresultmodel>> _fetchAndAttachTeams() async {
-    final results = await Api().fetchRoundResultsByRoundId(widget.roundId);
+    try {
+      final results = await Api().fetchRoundResultsByRoundId(widget.roundId);
+      print("Round Id ${widget.roundId}");
+      print("Fetched results: $results");
 
-    for (var result in results) {
-      final team = await Api().getTeamById(result.teamId);
-      result.teamModel = team; // Attach team info
+      await Future.wait(results.map((result) async {
+        if (result.teamModel == null) {
+          try {
+            result.teamModel = await Api().getTeamById(result.teamId);
+          } catch (e) {
+            print('Error fetching team ${result.teamId}: $e');
+            result.teamModel = null;
+          }
+        }
+      }));
+
+      return results;
+    } catch (e) {
+      print('Error fetching round results: $e');
+      rethrow;
     }
-
-    return results;
   }
 
   Future<void> _promoteTeam(Roundresultmodel item) async {
@@ -52,6 +63,7 @@ class _LeaderboardState extends State<Leaderboard> {
     try {
       final updatedResult = Roundresultmodel(
         id: item.id,
+        // ✅ Include the ID
         competitionRoundId: item.competitionRoundId,
         teamId: item.teamId,
         competitionId: item.competitionId,
@@ -63,14 +75,16 @@ class _LeaderboardState extends State<Leaderboard> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Team ${item.teamId} promoted successfully!'),
+          content:
+              Text('Team ${item.teamModel?.teamName} promoted successfully!'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
       );
 
-      _loadData(); // Refresh the data
+      _loadData();
     } catch (e) {
+      print("Error${e.toString()}");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to promote team: ${e.toString()}'),
@@ -197,13 +211,14 @@ class _LeaderboardState extends State<Leaderboard> {
                     itemCount: results.length,
                     itemBuilder: (context, index) {
                       final item = results[index];
-                      bool isCurrentUser = item.teamId == 2;
+                      bool isCurrentUser =
+                          item.teamId == 2; // Set this dynamically
                       bool isUpdating = _currentlyUpdatingTeam == item.teamId;
                       bool isPromoted = item.isQualified ?? false;
-                      print('Team Name ${item.teamModel?.teamName}');
+
                       return LeaderboardItem(
                         rank: index + 1,
-                        name: 'Team ${item.teamModel?.teamName}',
+                        name: 'Team ${item.teamModel?.teamName ?? 'Unknown'}',
                         points: item.score,
                         isCurrentUser: isCurrentUser,
                         isUpdating: isUpdating,

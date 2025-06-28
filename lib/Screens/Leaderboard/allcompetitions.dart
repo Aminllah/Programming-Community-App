@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
+import 'package:fyp/Screens/Leaderboard/allteamsinsppedprogramminground.dart';
 import 'package:fyp/Screens/Leaderboard/leaderboard.dart';
+import 'package:fyp/Screens/Leaderboard/studentLeaderboard.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -170,6 +172,7 @@ class CompetitionCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  SizedBox(),
                   Icon(
                     isExpanded ? Icons.expand_less : Icons.expand_more,
                     color: Colors.grey,
@@ -177,6 +180,28 @@ class CompetitionCard extends StatelessWidget {
                 ],
               ),
               if (isExpanded) ...[
+                const SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => Studentleaderboard(
+                                CompetitionId: competition.competitionId)));
+                  },
+                  child: Container(
+                    width: 320,
+                    height: 40,
+                    decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(10)),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Over All Result',
+                      style: TextStyle(color: Colors.white, fontSize: 20),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 FutureBuilder<List<RoundModel>>(
                   future: fetchRounds(competition.competitionId!),
@@ -242,12 +267,21 @@ class RoundsList extends StatelessWidget {
             subtitle: Text(_formatDate(round.date)),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => Leaderboard(roundId: round.id!),
-                ),
-              );
+              if (round.roundType == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) =>
+                          Allteamsinsppedprogramminground(roundid: round.id!)),
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => Leaderboard(roundId: round.id!),
+                  ),
+                );
+              }
             },
           ),
         );

@@ -78,8 +78,10 @@ class Drawer_Menu extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () {
-                  // Navigator.pushReplacement(context,
-                  //     MaterialPageRoute(builder: (context) => Leaderboard()));
+                  // Navigator.push(
+                  //     context,
+                  //     MaterialPageRoute(
+                  //         builder: (context) => BuzzerRoundScreen()));
                 },
                 child: const ListTile(
                   title: Text(
@@ -154,7 +156,12 @@ class Drawer_Menu extends StatelessWidget {
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      // Navigator.push(
+                      //     context,
+                      //     MaterialPageRoute(
+                      //         builder: (context) => BuzzerRoundScreen()));
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber,
                     ),

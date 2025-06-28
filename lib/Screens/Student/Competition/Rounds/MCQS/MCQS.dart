@@ -37,22 +37,47 @@ class _McqsroundState extends State<Mcqsround> {
   List<RoundModel> competitionRounds = [];
   bool isUnlockingNextRound = false;
   bool isSubmitting = false;
-  int? teamId; // Added teamId variable
+  int? teamid;
   Map<int, int?> selectedOptions = {};
 
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
-    _loadTeamId(); // Load teamId when widget initializes
+    _loadTeamId().then((_) {
+      _loadInitialData();
+    }).catchError((e) {
+      setState(() {
+        errorMessage = "Failed to load team information";
+        isLoading = false;
+      });
+    });
   }
 
   Future<void> _loadTeamId() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      teamId = prefs
-          .getInt('teamId'); // Assuming you store teamId in SharedPreferences
-    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('id');
+      if (userId == null) throw Exception('User not logged in');
+
+      print("User Id: $userId");
+      print("Competition Id: ${widget.competitionId}");
+
+      List<int> teamIds =
+          await Api().getTeamIdsByCompetitionId(widget.competitionId);
+
+      teamid =
+          await Api().getUserTeamFromTeamList(teamIds: teamIds, userId: userId);
+
+      if (teamid != null && teamid != 0) {
+        print('User is in team: $teamid');
+      } else {
+        print('User is not in any team for this competition');
+        throw Exception('User is not in any team for this competition');
+      }
+    } catch (e) {
+      print('Error loading team ID: $e');
+      throw e; // Re-throw to be caught in initState
+    }
   }
 
   @override
@@ -96,16 +121,36 @@ class _McqsroundState extends State<Mcqsround> {
     setState(() {
       questions = List<Map<String, dynamic>>.from(fetchedQuestions);
       correctAnswers = List.filled(questions.length, false);
+
+      for (int i = 0; i < questions.length; i++) {
+        if ((questions[i]['Options'] == null ||
+                questions[i]['Options'].isEmpty) &&
+            !textControllers.containsKey(i)) {
+          textControllers[i] = TextEditingController();
+        }
+      }
     });
   }
 
-// Updated _submitquestions method
   Future<void> _submitquestions() async {
-    if (isSubmitting) return;
+    print('Attempting submission...');
+
+    if (isSubmitting) {
+      print('Already submitting, skipping...');
+      return;
+    }
+
+    if (teamid == null || teamid == 0) {
+      print('No team ID available');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('You are not part of any team for this competition')),
+      );
+      return;
+    }
 
     setState(() => isSubmitting = true);
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -119,14 +164,10 @@ class _McqsroundState extends State<Mcqsround> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getInt('id');
-
       if (userId == null) throw Exception('User not logged in');
 
-      final teamId = await Api().getTeamIdByUserId(userId);
-      if (teamId == null) throw Exception('User is not part of any team');
-
       List<CompetitionAttemptedQuestionModel> attemptedQuestions = [];
-      int totalScore = 0; // To accumulate the total score
+      int totalScore = 0;
 
       for (var question in questions) {
         String answer = '';
@@ -140,36 +181,32 @@ class _McqsroundState extends State<Mcqsround> {
           if (selectedOptionId != null) {
             answer = selectedOptionId.toString();
 
-            // Find the selected option
             var selectedOption = options.firstWhere(
               (opt) => opt['id'] == selectedOptionId,
               orElse: () => <String, dynamic>{},
             );
-            // Score checking with better safety
+
             var isCorrectValue = selectedOption['isCorrect'];
-            if (isCorrectValue == true ||
-                isCorrectValue.toString().toLowerCase() == 'true') {
-              score = 1;
-            } else {
-              score = 0;
-            }
+            bool isCorrect = isCorrectValue == true ||
+                isCorrectValue.toString().toLowerCase() == 'true';
+
+            score = isCorrect ? 1 : 0;
           } else {
             answer = "No option selected";
             score = 0;
           }
         } else {
-          // Handle text input (sentence-type) questions
           answer = textControllers[questions.indexOf(question)]?.text ?? '';
-          score = 0; // Assuming text answers don't contribute to score
+          score = 0;
         }
 
-        totalScore += score; // Add to total score
+        totalScore += score;
 
         attemptedQuestions.add(CompetitionAttemptedQuestionModel(
           competitionId: widget.competitionId,
           competitionRoundId: widget.RoundId,
           questionId: questionId,
-          teamId: teamId,
+          teamId: teamid!,
           answer: answer,
           score: score,
           submissionTime: DateTime.now().toIso8601String(),
@@ -178,16 +215,14 @@ class _McqsroundState extends State<Mcqsround> {
 
       if (attemptedQuestions.isEmpty) throw Exception('No questions to submit');
 
-      // Submit the questions first
       await Api().addcompetitionquestions(attemptedQuestions);
 
-      // Now create the round result with the calculated total score
       final roundResult = Roundresultmodel(
         competitionRoundId: widget.RoundId,
-        teamId: teamId,
+        teamId: teamid!,
         competitionId: widget.competitionId,
         score: totalScore,
-        isQualified: false, // Example qualification logic - modify as needed
+        isQualified: false,
       );
 
       final response = await Api().createRoundResult(roundResult);
@@ -201,13 +236,13 @@ class _McqsroundState extends State<Mcqsround> {
           MaterialPageRoute(
             builder: (context) => Roundsummary(
               roundid: widget.RoundId,
-              teamid: teamId,
+              teamid: teamid!,
             ),
           ),
         );
       } else {
         final errorMessage = jsonDecode(response.body)?['message'] ??
-            "Failed to save round result";
+            'Failed to save round result';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -216,15 +251,21 @@ class _McqsroundState extends State<Mcqsround> {
         );
       }
     } catch (e) {
-      if (mounted) Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Submission failed: ${e.toString()}'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Submission failed: ${e.toString()}'),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      print('Submission error details: $e');
     } finally {
-      setState(() => isSubmitting = false);
+      if (mounted) {
+        setState(() => isSubmitting = false);
+      }
     }
   }
 
@@ -240,7 +281,6 @@ class _McqsroundState extends State<Mcqsround> {
         return;
       }
 
-      // Save the selected answer
       final options = currentQuestion["Options"] as List;
       final selectedOption = options.firstWhere(
         (option) => option["id"] == selectedOptions[questionId],
@@ -255,11 +295,9 @@ class _McqsroundState extends State<Mcqsround> {
       }
     }
 
-    // Move to next question or submit if last question
     if (currentQuestionIndex < questions.length - 1) {
       setState(() {
         currentQuestionIndex++;
-        // No need to set selectedAnswer as we're using selectedOptions map
       });
     } else {
       _submitquestions();
@@ -419,7 +457,6 @@ class _McqsroundState extends State<Mcqsround> {
                     : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Header Section
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
@@ -484,8 +521,6 @@ class _McqsroundState extends State<Mcqsround> {
                             ),
                           ),
                           const SizedBox(height: 20),
-
-                          // Question Content
                           Expanded(
                             child: SingleChildScrollView(
                               child: Container(
@@ -506,8 +541,6 @@ class _McqsroundState extends State<Mcqsround> {
                             ),
                           ),
                           const SizedBox(height: 20),
-
-                          // Navigation Buttons
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -544,12 +577,15 @@ class _McqsroundState extends State<Mcqsround> {
                                 ),
                               ),
                               ElevatedButton(
-                                onPressed: () {
+                                onPressed: () async {
+                                  if (isSubmitting || isUnlockingNextRound)
+                                    return;
+
                                   if (currentQuestionIndex <
                                       questions.length - 1) {
                                     _nextQuestion();
                                   } else {
-                                    _submitquestions();
+                                    await _submitquestions();
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(

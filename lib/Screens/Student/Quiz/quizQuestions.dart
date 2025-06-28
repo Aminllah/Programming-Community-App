@@ -16,9 +16,7 @@ class _TaskQuestionsState extends State<TaskQuestions>
     with SingleTickerProviderStateMixin {
   bool isLoading = true;
   List<Map<String, dynamic>> questions = [];
-  Map<int, int?> selectedOptions = {}; // Storing selected options with int keys
-  Map<int, String?> sentenceAnswers =
-      {}; // Storing sentence answers with int keys
+  Map<int, int?> selectedOptions = {};
   int currentQuestionIndex = 0;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -66,11 +64,11 @@ class _TaskQuestionsState extends State<TaskQuestions>
     }
   }
 
-  void _nextQuestion() {
+  void _nextQuestion() async {
+    await _submitCurrentQuestion();
     _animationController.reset();
     setState(() {
       currentQuestionIndex++;
-      // Reset the selected option for the next question
       selectedOptions[questions[currentQuestionIndex]['QuestionId']] = null;
     });
     _animationController.forward();
@@ -87,7 +85,7 @@ class _TaskQuestionsState extends State<TaskQuestions>
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           'Quiz Time',
           style: TextStyle(
             fontWeight: FontWeight.bold,
@@ -115,13 +113,10 @@ class _TaskQuestionsState extends State<TaskQuestions>
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.amber!),
                     strokeWidth: 5,
                   ),
-                  SizedBox(height: 20),
-                  Text(
+                  const SizedBox(height: 20),
+                  const Text(
                     'Loading Questions...',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ],
               ),
@@ -131,13 +126,10 @@ class _TaskQuestionsState extends State<TaskQuestions>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.quiz_outlined,
-                        size: 60,
-                        color: Colors.grey[400],
-                      ),
-                      SizedBox(height: 20),
-                      Text(
+                      Icon(Icons.quiz_outlined,
+                          size: 60, color: Colors.grey[400]),
+                      const SizedBox(height: 20),
+                      const Text(
                         'No Questions Available',
                         style: TextStyle(
                           color: Colors.white,
@@ -145,13 +137,10 @@ class _TaskQuestionsState extends State<TaskQuestions>
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 10),
-                      Text(
+                      const SizedBox(height: 10),
+                      const Text(
                         'Check back later or contact your instructor',
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                     ],
                   ),
@@ -163,7 +152,6 @@ class _TaskQuestionsState extends State<TaskQuestions>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Progress indicator
                         LinearProgressIndicator(
                           value: (currentQuestionIndex + 1) / questions.length,
                           backgroundColor: Colors.grey[800],
@@ -171,29 +159,27 @@ class _TaskQuestionsState extends State<TaskQuestions>
                               AlwaysStoppedAnimation<Color>(Colors.amber!),
                           minHeight: 8,
                         ),
-                        SizedBox(height: 10),
+                        const SizedBox(height: 10),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
                               "Question ${currentQuestionIndex + 1} of ${questions.length}",
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,
                               ),
                             ),
                             Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.amber,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
                                 "${((currentQuestionIndex + 1) / questions.length * 100).toStringAsFixed(0)}%",
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -201,9 +187,9 @@ class _TaskQuestionsState extends State<TaskQuestions>
                             ),
                           ],
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         _buildQuestionContent(questions[currentQuestionIndex]),
-                        SizedBox(height: 30),
+                        const SizedBox(height: 30),
                         _buildNavigationButton(),
                       ],
                     ),
@@ -213,13 +199,9 @@ class _TaskQuestionsState extends State<TaskQuestions>
   }
 
   Widget _buildQuestionContent(Map<String, dynamic> question) {
-    final hasOptions =
-        question['Options'] != null && question['Options'].isNotEmpty;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Question card
         Card(
           elevation: 4,
           shape: RoundedRectangleBorder(
@@ -228,45 +210,37 @@ class _TaskQuestionsState extends State<TaskQuestions>
           color: Colors.grey[850],
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.amber,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        "Q",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.amber,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Text(
+                    "Q",
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    question['QuestionText'] ?? "No Question Text",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
                     ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        question['QuestionText'] ?? "No Question Text",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
         ),
-        SizedBox(height: 20),
-        // Options or answer field
-        if (hasOptions) _buildMCQUI(question) else _buildSentenceUI(question),
+        const SizedBox(height: 20),
+        _buildMCQUI(question),
       ],
     );
   }
@@ -283,13 +257,12 @@ class _TaskQuestionsState extends State<TaskQuestions>
         return GestureDetector(
           onTap: () {
             setState(() {
-              selectedOptions[question['QuestionId']] =
-                  optionId; // Correctly store the selected option ID
+              selectedOptions[question['QuestionId']] = optionId;
             });
           },
           child: AnimatedContainer(
-            duration: Duration(milliseconds: 200),
-            margin: EdgeInsets.only(bottom: 10),
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.only(bottom: 10),
             decoration: BoxDecoration(
               color: isSelected ? Colors.amber[800] : Colors.grey[800],
               borderRadius: BorderRadius.circular(10),
@@ -298,7 +271,7 @@ class _TaskQuestionsState extends State<TaskQuestions>
                 width: 1.5,
               ),
             ),
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Container(
@@ -313,21 +286,14 @@ class _TaskQuestionsState extends State<TaskQuestions>
                     color: isSelected ? Colors.amber[400] : Colors.transparent,
                   ),
                   child: isSelected
-                      ? Icon(
-                          Icons.check,
-                          size: 16,
-                          color: Colors.white,
-                        )
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
                       : null,
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Text(
                     optionText,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
               ],
@@ -335,54 +301,6 @@ class _TaskQuestionsState extends State<TaskQuestions>
           ),
         );
       }).toList(),
-    );
-  }
-
-  Widget _buildSentenceUI(Map<String, dynamic> question) {
-    int questionId =
-        question['QuestionId']; // Using int key for sentenceAnswers map
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Your Answer:",
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 16,
-          ),
-        ),
-        SizedBox(height: 10),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[800],
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 6,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: TextField(
-            onChanged: (text) {
-              setState(() {
-                sentenceAnswers[questionId] =
-                    text; // Store the answer as text for sentence-type questions
-              });
-            },
-            maxLines: 5,
-            decoration: InputDecoration(
-              hintText: "Type your answer here...",
-              hintStyle: TextStyle(color: Colors.grey[500]),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.all(16),
-            ),
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      ],
     );
   }
 
@@ -395,33 +313,25 @@ class _TaskQuestionsState extends State<TaskQuestions>
       String answer = '';
       int score = 0;
 
-      // For MCQ questions
       if (question['Options'] != null && question['Options'].isNotEmpty) {
         List<dynamic> options = question['Options'];
         int? selectedOptionId = selectedOptions[question['QuestionId']];
 
-        // Find the selected option
         var selectedOption = options.firstWhere(
           (option) => option['optionId'] == selectedOptionId,
           orElse: () => null,
         );
 
         if (selectedOption != null) {
-          // Store the actual answer text, not just the ID
           answer = selectedOption['optionText'] ?? "No answer text";
-
-          // Directly check the isCorrect flag
           if (selectedOption['isCorrect'] == true) {
             score = 1;
+          } else {
+            score = 0;
           }
         } else {
           answer = "No option selected";
         }
-      }
-      // For sentence-type questions
-      else {
-        answer =
-            "User's answer here"; // You should implement text input for this
       }
 
       task.add(SubmittedTaskModel(
@@ -429,7 +339,6 @@ class _TaskQuestionsState extends State<TaskQuestions>
         questionId: question['QuestionId'],
         userId: userId!,
         answer: answer,
-        // Now storing the actual answer text
         submissionDate:
             '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
         submissionTime:
@@ -443,7 +352,7 @@ class _TaskQuestionsState extends State<TaskQuestions>
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Quiz Submitted Successfully!'),
+            content: const Text('Quiz Submitted Successfully!'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -469,13 +378,9 @@ class _TaskQuestionsState extends State<TaskQuestions>
       child: ElevatedButton(
         onPressed: currentQuestionIndex < questions.length - 1
             ? _nextQuestion
-            : () {
-                print(
-                    "Submit button clicked!"); // Debugging if submit is clicked
-                _submitQuiz(); // Ensure this function gets called
-              },
+            : _submitQuiz,
         style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
           backgroundColor: Colors.amber,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -485,9 +390,66 @@ class _TaskQuestionsState extends State<TaskQuestions>
           currentQuestionIndex < questions.length - 1
               ? 'Next Question'
               : 'Submit Quiz',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
     );
+  }
+
+  Future<void> _submitCurrentQuestion() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? userId = prefs.getInt('id');
+    final currentQuestion = questions[currentQuestionIndex];
+
+    String answer = '';
+    int score = 0;
+
+    if (currentQuestion['Options'] != null &&
+        currentQuestion['Options'].isNotEmpty) {
+      List<dynamic> options = currentQuestion['Options'];
+      int? selectedOptionId = selectedOptions[currentQuestion['QuestionId']];
+
+      if (selectedOptionId != null) {
+        var selectedOption = options.firstWhere(
+          (option) => option['optionId'] == selectedOptionId,
+          orElse: () => null,
+        );
+
+        if (selectedOption != null) {
+          answer = selectedOption['optionId'].toString();
+          if (selectedOption['isCorrect'] == true) {
+            score = 1;
+          }
+        }
+      } else {
+        answer = "No option selected";
+      }
+    }
+
+    SubmittedTaskModel submission = SubmittedTaskModel(
+      taskId: widget.taskid,
+      questionId: currentQuestion['QuestionId'],
+      userId: userId!,
+      answer: answer,
+      submissionDate:
+          '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}',
+      submissionTime:
+          '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}:${DateTime.now().second.toString().padLeft(2, '0')}',
+      score: score,
+    );
+
+    try {
+      var response = await Api().addsubmittedtask([submission]);
+      if (response.statusCode != 200) {
+        throw Exception('Failed to submit question.');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error submitting answer: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

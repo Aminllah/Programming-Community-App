@@ -21,7 +21,10 @@ class _AllquestionsState extends State<Allquestions> {
         title: const Text(
           'All Questions',
           style: TextStyle(
-              color: Colors.black, fontSize: 22, fontWeight: FontWeight.bold),
+            color: Colors.black,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         leading: IconButton(
           onPressed: () {
@@ -54,21 +57,30 @@ class _AllquestionsState extends State<Allquestions> {
         future: Api().getAllQuestionswithoptions(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.amber),
+              ),
+            );
           }
           if (snapshot.hasError) {
             return Center(
-                child: Text(
-              'Error: ${snapshot.error}',
-              style: const TextStyle(fontSize: 16, color: Colors.red),
-            ));
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            );
           }
           if (snapshot.hasData && snapshot.data!.isNotEmpty) {
             return ListView.builder(
               padding: const EdgeInsets.all(12),
               itemCount: snapshot.data!.length,
               itemBuilder: (context, index) {
-                var question = snapshot.data![index];
+                final question = snapshot.data![index];
                 return Card(
                   elevation: 4,
                   margin: const EdgeInsets.symmetric(vertical: 8),
@@ -87,7 +99,7 @@ class _AllquestionsState extends State<Allquestions> {
                               backgroundColor: Colors.amber.shade700,
                               radius: 25,
                               child: const Icon(
-                                Icons.question_mark,
+                                Icons.subject,
                                 color: Colors.white,
                               ),
                             ),
@@ -99,49 +111,155 @@ class _AllquestionsState extends State<Allquestions> {
                                   Text(
                                     question.text,
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  if (question.options != null)
+                                  const SizedBox(height: 12),
+
+                                  // Show question type indicator
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade100,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      questionType(question.type),
+                                      style: TextStyle(
+                                        color: Colors.blue.shade800,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  // Show options if they exist (regardless of question type)
+                                  if (question.options != null &&
+                                      question.options!.isNotEmpty)
                                     Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
-                                      children: List.generate(
-                                        question.options!.length,
-                                        (i) {
-                                          var option = question.options![i];
-                                          return Container(
-                                            margin: const EdgeInsets.symmetric(
-                                                vertical: 4),
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: option.isCorrect
-                                                  ? Colors.green.shade200
-                                                  : Colors.grey.shade300,
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            child: Align(
-                                              alignment: Alignment.centerLeft,
-                                              child: Text(
-                                                '${i + 1}: ${option.option}${option.isCorrect ? " (Correct: true)" : ""}',
-                                                style: const TextStyle(
-                                                    color: Colors.black,
-                                                    fontWeight:
-                                                        FontWeight.w500),
+                                      children: [
+                                        const Text(
+                                          'Options:',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        ...question.options!
+                                            .map(
+                                              (option) => Container(
+                                                margin: const EdgeInsets.only(
+                                                    bottom: 8),
+                                                padding:
+                                                    const EdgeInsets.all(10),
+                                                decoration: BoxDecoration(
+                                                  color: option.isCorrect
+                                                      ? Colors.green.shade100
+                                                          .withOpacity(0.8)
+                                                      : Colors.grey.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: option.isCorrect
+                                                        ? Colors.green.shade300
+                                                        : Colors.grey.shade300,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      option.isCorrect
+                                                          ? Icons.check_circle
+                                                          : Icons
+                                                              .radio_button_unchecked,
+                                                      color: option.isCorrect
+                                                          ? Colors
+                                                              .green.shade700
+                                                          : Colors
+                                                              .grey.shade600,
+                                                      size: 20,
+                                                    ),
+                                                    const SizedBox(width: 10),
+                                                    Expanded(
+                                                      child: Text(
+                                                        option.option,
+                                                        style: TextStyle(
+                                                          color: Colors.black87,
+                                                          fontWeight: option
+                                                                  .isCorrect
+                                                              ? FontWeight.w600
+                                                              : FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
+                                            )
+                                            .toList(),
+                                      ],
+                                    ),
+                                  if (question.type == 3 &&
+                                      question.output != null &&
+                                      question.output!.output.isNotEmpty)
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          'Output:',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade800,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            question.output!.output,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w500,
                                             ),
-                                          );
-                                        },
-                                      ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   const SizedBox(height: 8),
-                                  Text(
-                                    "Difficulty: ${difficultyLevel(question.difficulty)}  Type: ${questionType(question.type)}",
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.white),
+
+                                  // Difficulty indicator
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: _getDifficultyColor(
+                                              question.difficulty)
+                                          .withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'Difficulty: ${difficultyLevel(question.difficulty)}',
+                                      style: TextStyle(
+                                        color: _getDifficultyColor(
+                                            question.difficulty),
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -155,11 +273,16 @@ class _AllquestionsState extends State<Allquestions> {
               },
             );
           }
-          return const Center(
-              child: Text(
-            'No Questions Available',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-          ));
+          return Center(
+            child: Text(
+              'No Questions Available',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          );
         },
       ),
     );
@@ -175,6 +298,19 @@ class _AllquestionsState extends State<Allquestions> {
         return "Hard";
       default:
         return "Unknown";
+    }
+  }
+
+  Color _getDifficultyColor(int level) {
+    switch (level) {
+      case 1:
+        return Colors.green;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 

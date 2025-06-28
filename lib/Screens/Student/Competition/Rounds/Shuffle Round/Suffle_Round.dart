@@ -1,11 +1,11 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
-import 'package:fyp/Models/competitionattemptedquestions.dart';
-import 'package:fyp/Screens/Student/Competition/Rounds/roundsummary.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../../Models/competitionattemptedquestions.dart';
 import '../../../../../Models/roundResultModel.dart';
+import '../roundsummary.dart';
 
 class SuffleRound extends StatefulWidget {
   final int competitionRoundId;
@@ -32,7 +32,7 @@ class _SuffleRoundState extends State<SuffleRound> {
   bool isSubmitting = false;
   List<bool> questionResults = [];
   List<String?> submittedAnswers = [];
-
+  String outputText = ''; // Add this at the top of your state class
   Future<void> _initializeRound() async {
     try {
       allQuestions = await Api().fetchCompetitionRoundQuestions(
@@ -51,15 +51,37 @@ class _SuffleRoundState extends State<SuffleRound> {
 
   void _loadQuestion(int index) {
     if (index >= 0 && index < allQuestions.length) {
-      final questionText = allQuestions[index]['QuestionText'];
-      final questionLines = questionText.split('\\n');
+      final question = allQuestions[index];
+
+      final rawQuestionText = question['questionText']?.toString() ??
+          question['QuestionText']?.toString() ??
+          '';
+
+      final fixedQuestionText =
+          rawQuestionText.replaceAll(r'\\n', '\n').replaceAll(r'\n', '\n');
+
+      // ✅ Define questionLines from fixedQuestionText
+      final questionLines = fixedQuestionText
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .toList();
+
+      // ✅ Extract output
+      dynamic outputData = question['output'] ?? question['Output'];
+      String currentOutputText = '';
+
+      if (outputData is Map) {
+        currentOutputText = outputData['output']?.toString() ?? '';
+      }
+
+      print('Output text extracted: $currentOutputText'); // Debug print
 
       setState(() {
         currentQuestionIndex = index;
         originalQuestions = questionLines;
         shuffledQuestions = List.from(questionLines)..shuffle();
+        outputText = currentOutputText;
 
-        // Initialize results and answers if not done yet
         if (questionResults.length < allQuestions.length) {
           questionResults = List<bool>.filled(allQuestions.length, false);
           submittedAnswers = List<String?>.filled(allQuestions.length, null);
@@ -88,52 +110,17 @@ class _SuffleRoundState extends State<SuffleRound> {
     final isCorrect =
         ListEquality().equals(shuffledQuestions, originalQuestions);
 
-    // Show confirmation dialog
-    final shouldProceed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(isCorrect ? 'Correct!' : 'Incorrect'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(isCorrect
-                    ? 'You arranged the items correctly!'
-                    : 'The correct order is different.'),
-                const SizedBox(height: 16),
-                if (!isCorrect) ...[
-                  const Text('Correct order:'),
-                  ...originalQuestions.map((q) => Text('- $q')).toList(),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Continue'),
-              ),
-              if (currentQuestionIndex < allQuestions.length - 1)
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Try Again'),
-                ),
-            ],
-          ),
-        ) ??
-        false;
-
-    if (!shouldProceed) {
-      setState(() => isSubmitting = false);
-      return;
-    }
-
+    // Update the current question result
     setState(() {
       questionResults[currentQuestionIndex] = isCorrect;
       submittedAnswers[currentQuestionIndex] = shuffledQuestions.join('\\n');
     });
 
     if (currentQuestionIndex == allQuestions.length - 1) {
+      // If it's the last question, submit all answers and go to summary
       await _submitAllAnswers();
     } else {
+      // If not last question, move to next question
       _loadQuestion(currentQuestionIndex + 1);
       setState(() => isSubmitting = false);
     }
@@ -155,8 +142,16 @@ class _SuffleRoundState extends State<SuffleRound> {
     }
 
     try {
-      final teamId = await Api().getTeamIdByUserId(userId);
-      if (teamId == null) throw Exception('Team not found');
+      final teamIds = await Api().getTeamIdsByUserId(userId);
+      if (teamIds.isEmpty) throw Exception('User is not part of any team');
+
+      // Get the relevant team ID for this competition
+      final teamId = await Api().getUserTeamFromTeamList(
+        teamIds: teamIds,
+        userId: userId,
+      );
+      if (teamId == null)
+        throw Exception('No valid team found for this competition');
 
       List<CompetitionAttemptedQuestionModel> submissions = [];
       int totalScore = 0; // Track total score
@@ -184,7 +179,6 @@ class _SuffleRoundState extends State<SuffleRound> {
       final questionResponse = await Api().addcompetitionquestions(submissions);
 
       if (questionResponse.statusCode == 200) {
-        // Submit round result with total score
         final roundResult = Roundresultmodel(
           competitionRoundId: widget.competitionRoundId,
           competitionId: widget.competitionId,
@@ -196,15 +190,8 @@ class _SuffleRoundState extends State<SuffleRound> {
         final roundResponse = await Api().createRoundResult(roundResult);
 
         if (roundResponse.statusCode >= 200 && roundResponse.statusCode < 300) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => Roundsummary(
-                roundid: widget.competitionRoundId,
-                teamid: teamId,
-              ),
-            ),
-          );
+          // Navigate to summary page after successful submission
+          _navigateToSummary(teamId);
         } else {
           throw Exception("Failed to save round result: ${roundResponse.body}");
         }
@@ -221,6 +208,18 @@ class _SuffleRoundState extends State<SuffleRound> {
     } finally {
       setState(() => isSubmitting = false);
     }
+  }
+
+  void _navigateToSummary(int teamId) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Roundsummary(
+          roundid: widget.competitionRoundId,
+          teamid: teamId,
+        ),
+      ),
+    );
   }
 
   @override
@@ -252,6 +251,26 @@ class _SuffleRoundState extends State<SuffleRound> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
+                  if (outputText.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.amber, width: 1.5),
+                      ),
+                      child: Text(
+                        outputText,
+                        style: const TextStyle(
+                          color: Colors.amber,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+
+                  // Question container
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -260,7 +279,7 @@ class _SuffleRoundState extends State<SuffleRound> {
                       border: Border.all(color: Colors.amber, width: 1.5),
                     ),
                     child: Text(
-                      'Question ${currentQuestionIndex + 1}: Arrange the items in correct order',
+                      'Question ${currentQuestionIndex + 1}: Arrange the code in correct order',
                       style: const TextStyle(
                         color: Colors.amber,
                         fontSize: 18,

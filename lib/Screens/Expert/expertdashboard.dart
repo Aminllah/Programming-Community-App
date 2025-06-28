@@ -3,11 +3,11 @@ import 'package:fyp/Screens/Admin/admin.dart';
 import 'package:fyp/Screens/Expert/Competition/competitions.dart';
 import 'package:fyp/Screens/Expert/Expertise/addexpertise.dart';
 import 'package:fyp/Screens/Expert/Quiz/quizzes.dart';
-import 'package:fyp/Screens/Leaderboard/allcompetitions.dart';
 import 'package:fyp/Widgets/Cards.dart';
 import 'package:fyp/Widgets/Drawer.dart';
 import 'package:fyp/Widgets/Leaderboard_container.dart';
 
+import '../Leaderboard/allcompetitions.dart';
 import 'QuestionBank/allquestions.dart';
 
 class Expertdashboard extends StatefulWidget {

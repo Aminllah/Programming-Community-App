@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/Apis/apisintegration.dart';
 import 'package:fyp/Models/subjectmodel.dart';
+import 'package:fyp/Screens/Expert/QuestionBank/ShuffleQuestions.dart';
 import 'package:fyp/Screens/Expert/QuestionBank/allquestions.dart';
 import 'package:fyp/Screens/Expert/QuestionBank/mcqsquestion.dart';
 import 'package:fyp/Screens/Expert/QuestionBank/sentencequestions.dart';
@@ -165,20 +166,20 @@ class _QuestionbankState extends State<Questionbank> {
                                     .toString(),
                               )),
                     );
-                  }
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => Sentencequestions(
-                        subject: selectedsubjects!,
-                        topic: 8,
-                        difficaultylevel: getDifficultyLevel(selectedlevel),
-                        type:
-                            getquestiontype(selectedtype.toString()).toString(),
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ShuffleQuestionsScreen(
+                          subject: selectedsubjects!,
+                          topic: 8,
+                          difficultyLevel: getDifficultyLevel(selectedlevel),
+                          type: getquestiontype(selectedtype.toString())
+                              .toString(),
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  }
                 }
               },
               child: Container(

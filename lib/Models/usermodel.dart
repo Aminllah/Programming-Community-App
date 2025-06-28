@@ -9,20 +9,22 @@ class Usermodel {
   String? phonenum;
   String? firstname;
   String? lastname;
+  int? level;
 
   // Constructor with default values for id and semester
-  Usermodel({
-    this.id = 0, // Default value for id
-    this.password,
-    this.email,
-    this.firstname,
-    this.lastname,
-    this.phonenum,
-    this.regNum,
-    this.role,
-    this.section,
-    this.semester = 0, // Default value for semester
-  });
+  Usermodel(
+      {this.id = 0, // Default value for id
+      this.password,
+      this.email,
+      this.firstname,
+      this.lastname,
+      this.phonenum,
+      this.regNum,
+      this.role,
+      this.section,
+      this.semester = 0,
+      this.level = 0 // Default value for semester
+      });
 
   // From JSON method
   Usermodel.fromJson(Map<String, dynamic> json) {
@@ -37,6 +39,7 @@ class Usermodel {
     phonenum = json['phonenum'];
     firstname = json['firstname'];
     lastname = json['lastname'];
+    level = json['level'] ?? 0; // Default value for id if not provided
   }
 
   // To JSON method
@@ -52,6 +55,7 @@ class Usermodel {
     data['phonenum'] = this.phonenum;
     data['firstname'] = this.firstname;
     data['lastname'] = this.lastname;
+    data['level'] = this.level;
     return data;
   }
 }

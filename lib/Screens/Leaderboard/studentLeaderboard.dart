@@ -25,18 +25,19 @@ class _StudentleaderboardState extends State<Studentleaderboard> {
 
   void _loadData() {
     setState(() {
-      _futureResults = _fetchAndAttachTeams();
+      _futureResults = _fetchAndTeams();
     });
   }
 
-  Future<List<Roundresultmodel>> _fetchAndAttachTeams() async {
+  Future<List<Roundresultmodel>> _fetchAndTeams() async {
     final results =
         await Api().fetchRoundResultsByCompetitionId(widget.CompetitionId);
+    print("Competition Id${widget.CompetitionId}");
     final Map<int, Roundresultmodel> aggregatedResults = {};
 
     for (var result in results) {
       final team = await Api().getTeamById(result.teamId);
-
+      print("Team$team");
       if (aggregatedResults.containsKey(result.teamId)) {
         aggregatedResults[result.teamId]!.score += result.score;
       } else {
