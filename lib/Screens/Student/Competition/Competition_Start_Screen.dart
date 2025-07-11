@@ -4,10 +4,10 @@ import 'package:fyp/Screens/Student/Dashboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../Models/competitionroundmodel.dart';
-import 'Rounds/Buzzer Round/Buzzer_round.dart';
 import 'Rounds/MCQS/MCQS.dart';
 import 'Rounds/Shuffle Round/Suffle_Round.dart';
 import 'Rounds/Speed Programming/SpeedPrograming.dart';
+import 'Tasks/buzzerbtn.dart';
 
 class CompetitionStartScreen extends StatefulWidget {
   final int competitionId;
@@ -29,6 +29,10 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
   }
 
   void navigateToRound(RoundModel round) {
+    final roundDate = DateTime.parse(round.date); // round.date is "2025-03-14"
+    // if (roundDate.year == DateTime.now().year &&
+    //     roundDate.month == DateTime.now().month &&
+    //     roundDate.day == DateTime.now().day) {
     if (round.roundType == 1) {
       Navigator.push(
           context,
@@ -60,12 +64,15 @@ class _CompetitionStartScreenState extends State<CompetitionStartScreen> {
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => BuzzerRoundScreen(
+              builder: (_) => BuzzerScreen(
                     competitionId: round.competitionId,
                     RoundId: round.id!,
-                    roundType: round.roundType,
                   )));
     }
+    // } else {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //       SnackBar(content: Text('The Round is not Started yet')));
+    // }
   }
 
   @override

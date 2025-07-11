@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fyp/Screens/Expert/expertdashboard.dart';
 import 'package:fyp/Screens/Student/Dashboard.dart';
-import 'package:fyp/Widgets/Cards.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});

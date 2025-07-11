@@ -18,10 +18,11 @@ import 'package:fyp/Models/usermodel.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../Models/buzzertestingmodels.dart';
 import '../Models/subjectmodel.dart';
 
 class Api {
-  String baseUrl = "http://192.168.10.5:8082/api/";
+  String baseUrl = "http://192.168.10.10:8082/api/";
 
   // User SignUp
   Future<bool> signup(Usermodel userModel) async {
@@ -54,13 +55,18 @@ class Api {
           final int id = responseData['id'];
           final String firstname = responseData['firstname'] ?? '';
           final String lastname = responseData['lastname'] ?? '';
+          final String email = responseData['email'];
           final int role = responseData['role'] ?? 0;
+          final int level = responseData['level'] ?? 0;
+          final int totalscore = responseData['totalscore'] ?? 0;
           final SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setInt('id', id);
           await prefs.setString('firstname', firstname);
           await prefs.setString('lastname', lastname);
           await prefs.setInt('role', role); // Store role for future use
-
+          await prefs.setInt('level', level);
+          await prefs.setInt('totalscore', totalscore);
+          await prefs.setString('email', email);
           return response;
         } else {
           throw Exception('ID not found in response');
@@ -70,6 +76,29 @@ class Api {
       }
     } catch (e) {
       throw Exception(e);
+    }
+  }
+
+  //updated user score
+  Future<http.Response> updateUserScoreAndLevel(int userId, int score) async {
+    final url =
+        Uri.parse('http://your-api-url.com/api/user/UpdateScoreAndLevel');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'score': score,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print("✅ Score and level updated successfully");
+      return response;
+    } else {
+      print("❌ Failed to update score and level: ${response.body}");
+      return response;
     }
   }
 
@@ -114,7 +143,6 @@ class Api {
   Future<Map<String, dynamic>> addQuestionWithOptions(
       QuestionModel question) async {
     // Accept QuestionModel directly
-    final url = '${baseUrl}Questions/AddQuestionWithOptions';
 
     try {
       final response = await http.post(
@@ -1255,7 +1283,7 @@ class Api {
 
   // Get current buzzer press status (GET /status)
   Future<BuzzzerPress> getBuzzerStatus() async {
-    final url = Uri.parse('${baseUrl}Buzzer/status');
+    final url = Uri.parse('${baseUrl}Buzzer/Buzzerstatus');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -1264,6 +1292,14 @@ class Api {
     } else {
       throw Exception('Failed to get buzzer status');
     }
+  }
+
+  Future<CurrentTurn?> getCurrentTurn(int questionId) async {
+    final res =
+        await http.get(Uri.parse('${baseUrl}Buzzer/status/$questionId'));
+    if (res.statusCode != 200) return null;
+    final json = jsonDecode(res.body);
+    return CurrentTurn(teamId: json['teamId']);
   }
 
   Future<int> getValidQuestionIndex() async {
@@ -1338,6 +1374,174 @@ class Api {
       return BuzzzerPressResponse.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to press buzzer: ${response.statusCode}');
+    }
+  }
+
+  Future<BuzzzerPress?> getSecondTeam(int questionId, int competitionId) async {
+    final url = Uri.parse(
+        '${baseUrl}Buzzer/advance-queue/$questionId?competitionId=$competitionId');
+
+    final response = await http.post(url);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return BuzzzerPress.fromJson(data);
+    } else if (response.statusCode == 404) {
+      print('No second team found or less than two teams buzzed.');
+      return null;
+    } else {
+      throw Exception(
+          'Failed to fetch second team. Status: ${response.statusCode}');
+    }
+  }
+
+  Future<AdvanceTurnResponse?> advanceTurn(int questionId) async {
+    final response = await http.post(
+      Uri.parse('${baseUrl}Buzzer/advance-turn'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'questionId': questionId}),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return AdvanceTurnResponse(
+        turnPassed: json['turnPassed'],
+        nextTeamId: json['nextTeamId'],
+        nextTeamName: json['nextTeamName'],
+      );
+    }
+    return null;
+  }
+
+  Future<BuzzzerPressResponse> pressBuzzerbtn(
+      int teamId, int questionId) async {
+    final url = Uri.parse('${baseUrl}Buzzer/pressbtn');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(
+          BuzzzerPressRequest(teamId: teamId, questionId: questionId).toJson()),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return BuzzzerPressResponse.fromJson(data);
+    } else {
+      throw Exception('Failed to press buzzer');
+    }
+  }
+
+  ///for showing multiple questions at a time like showing 5 questions to each
+  Future<bool> resetsBuzzerCache() async {
+    final response = await http.post(
+      Uri.parse('${baseUrl}BuzzerTesting/reset-cache'),
+    );
+
+    return response.statusCode == 200;
+  }
+
+  Future<BuzzerPressResult?> pressBuzzerButton(
+      {required BuzzerPressInput buzzerinput}) async {
+    final response = await http.post(
+      Uri.parse('${baseUrl}BuzzerTesting/pressbtn'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(buzzerinput.toJson()),
+    );
+
+    if (response.statusCode == 200) {
+      return BuzzerPressResult.fromJson(jsonDecode(response.body));
+    } else {
+      return null;
+    }
+  }
+
+  Future<AdvanceTurnResult?> advancesTurn(int competitionId) async {
+    final response = await http.post(
+      Uri.parse('${baseUrl}BuzzerTesting/advance-turn'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'CompetitionId': competitionId}),
+    );
+
+    if (response.statusCode == 200) {
+      return AdvanceTurnResult.fromJson(jsonDecode(response.body));
+    } else {
+      return null;
+    }
+  }
+
+  Future<BuzzerPressResult?> getCurrentBuzzerPress() async {
+    final response = await http.get(
+      Uri.parse('${baseUrl}BuzzerTesting/status'),
+    );
+
+    if (response.statusCode == 200) {
+      return BuzzerPressResult.fromJson(jsonDecode(response.body));
+    } else {
+      return null;
+    }
+  }
+
+  Future<BuzzerPressResult?> getCurrentBuzzerPressByCompetitionId(
+      int competitionId) async {
+    final response = await http
+        .get(Uri.parse('${baseUrl}BuzzerTesting/status/$competitionId'));
+    if (response.statusCode == 200) {
+      return BuzzerPressResult.fromJson(jsonDecode(response.body));
+    }
+    return null;
+  }
+
+  Future<bool> markBuzzerRoundComplete(int competitionId) async {
+    final url = Uri.parse(
+        '${baseUrl}BuzzerTesting/mark-complete?competitionId=$competitionId');
+
+    final response = await http.post(url);
+
+    if (response.statusCode == 200) {
+      // Success
+      return true;
+    } else if (response.statusCode == 404) {
+      // Not found
+      print('Buzzer press data not found.');
+      return false;
+    } else {
+      // Other error
+      print('Failed to mark buzzer round complete: ${response.statusCode}');
+      return false;
+    }
+  }
+
+//shuffled task
+  Future<bool> validateShuffledAnswer({
+    required int questionId,
+    required String userCode,
+  }) async {
+    final uri = Uri.parse(
+        '${baseUrl}ShuffledQuestionAnswers/validate?questionId=$questionId');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(userCode),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['isCorrect'] == true;
+    } else {
+      throw Exception('Failed to validate shuffled answer: ${response.body}');
+    }
+  }
+
+  Future<List<String>> getPossibleSolutions(int questionId) async {
+    final uri = Uri.parse(
+        '${baseUrl}ShuffledQuestionAnswers/possible-solutions/$questionId');
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List;
+      return data.cast<String>();
+    } else {
+      throw Exception('Failed to load possible solutions');
     }
   }
 }

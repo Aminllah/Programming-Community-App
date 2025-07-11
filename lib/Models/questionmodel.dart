@@ -9,6 +9,7 @@ class QuestionModel {
   int repeated;
   List<OptionModel>? options;
   OutputModel? output;
+  List<ShuffledPosibleSolutionsModel>? shuffledsolutions;
 
   QuestionModel(
       {this.id = 0,
@@ -20,7 +21,8 @@ class QuestionModel {
       required this.type,
       this.repeated = 0,
       this.options,
-      this.output});
+      this.output,
+      this.shuffledsolutions});
 
   static QuestionModel fromJson(Map<String, dynamic> json) {
     return QuestionModel(
@@ -39,6 +41,11 @@ class QuestionModel {
           : null,
       output:
           json['output'] != null ? OutputModel.fromJson(json['output']) : null,
+      shuffledsolutions: json['shuffledSolutions'] != null
+          ? (json['shuffledSolutions'] as List)
+              .map((s) => ShuffledPosibleSolutionsModel.fromJson(s))
+              .toList()
+          : null,
     );
   }
 
@@ -61,6 +68,12 @@ class QuestionModel {
     // Add output only if type is code-output (3)
     if (type == 3 && output != null) {
       data['Output'] = output!.output;
+    }
+    if (type == 3 &&
+        shuffledsolutions != null &&
+        shuffledsolutions!.isNotEmpty) {
+      data['PossibleSolutions'] = // 👈 must match backend key exactly
+          shuffledsolutions!.map((s) => s.toJson()).toList();
     }
 
     return data;
@@ -118,5 +131,25 @@ class OutputModel {
       'OutputText': output,
       'QuestionId': questionid,
     };
+  }
+}
+
+class ShuffledPosibleSolutionsModel {
+  final int? Id;
+  final int? QuestionId;
+  final possibleSolution;
+
+  ShuffledPosibleSolutionsModel(
+      {this.Id = 0, this.QuestionId, required this.possibleSolution});
+
+  Map<String, dynamic> toJson() {
+    return {'QuestionId': QuestionId, 'possibleSolution': possibleSolution};
+  }
+
+  static ShuffledPosibleSolutionsModel fromJson(Map<String, dynamic> json) {
+    return ShuffledPosibleSolutionsModel(
+        Id: json['Id'] ?? 0,
+        QuestionId: json['QuestionId'] ?? 0,
+        possibleSolution: json['possibleSolution'] ?? '');
   }
 }

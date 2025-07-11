@@ -10,6 +10,7 @@ class Usermodel {
   String? firstname;
   String? lastname;
   int? level;
+  int? totalscore;
 
   // Constructor with default values for id and semester
   Usermodel(
@@ -23,8 +24,8 @@ class Usermodel {
       this.role,
       this.section,
       this.semester = 0,
-      this.level = 0 // Default value for semester
-      });
+      this.level = 0,
+      this.totalscore = 0});
 
   // From JSON method
   Usermodel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +41,7 @@ class Usermodel {
     firstname = json['firstname'];
     lastname = json['lastname'];
     level = json['level'] ?? 0; // Default value for id if not provided
+    totalscore = json['totalscore'] ?? 0;
   }
 
   // To JSON method
@@ -56,6 +58,7 @@ class Usermodel {
     data['firstname'] = this.firstname;
     data['lastname'] = this.lastname;
     data['level'] = this.level;
+    data['totalscore'] = this.totalscore;
     return data;
   }
 }

@@ -16,7 +16,6 @@ class Addexpertise extends StatefulWidget {
 
 class _AddexpertiseState extends State<Addexpertise> {
   List<String> selectedSubjects = [];
-  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {

@@ -326,6 +326,8 @@ class _TaskQuestionsState extends State<TaskQuestions>
           answer = selectedOption['optionText'] ?? "No answer text";
           if (selectedOption['isCorrect'] == true) {
             score = 1;
+            final response =
+                await Api().updateUserScoreAndLevel(userId!, score);
           } else {
             score = 0;
           }

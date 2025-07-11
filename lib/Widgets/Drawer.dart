@@ -1,10 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class Drawer_Menu extends StatelessWidget {
+class Drawer_Menu extends StatefulWidget {
   const Drawer_Menu({super.key});
 
   @override
+  State<Drawer_Menu> createState() => _Drawer_MenuState();
+}
+
+class _Drawer_MenuState extends State<Drawer_Menu> {
+  int? level;
+  int? totalscore;
+  String? name;
+  String? email;
+  String? firstname;
+  String? lastname;
+
+  @override
+  void initState() {
+    super.initState();
+    getValues();
+  }
+
+  Future<void> getValues() async {
+    final SharedPreferences pref = await SharedPreferences.getInstance();
+    setState(() {
+      level = pref.getInt('level') ?? 0;
+      totalscore = pref.getInt('totalscore') ?? 0;
+      email = pref.getString('email');
+      firstname = pref.getString('firstname');
+      lastname = pref.getString('lastname');
+      name = '${firstname ?? ''} ${lastname ?? ''}'.trim();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    double progress = (totalscore ?? 0) % 50 / 50;
+
     return Drawer(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -12,19 +45,31 @@ class Drawer_Menu extends StatelessWidget {
           // Top content
           Column(
             children: [
-              const DrawerHeader(
-                decoration: BoxDecoration(color: Colors.amber),
-                child: Center(
+              DrawerHeader(
+                decoration: const BoxDecoration(color: Colors.amber),
+                child: SingleChildScrollView(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.person,
                         color: Colors.black,
                         size: 60,
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Amin Ullah',
+                        '${name}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${email}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
@@ -33,24 +78,28 @@ class Drawer_Menu extends StatelessWidget {
                           letterSpacing: 2,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'uamin0921@gmail.com',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
+                        'Level: ${level ?? 0}',
+                        style: const TextStyle(
                           color: Colors.black,
                           fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
+                          fontSize: 14,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 6),
+                      LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 8,
+                        backgroundColor: Colors.black12,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(height: 4),
                       Text(
-                        'Level :',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                        '${(totalscore ?? 0) % 50}/50 XP to next level',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black87,
                         ),
                       ),
                     ],
@@ -78,10 +127,7 @@ class Drawer_Menu extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () {
-                  // Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(
-                  //         builder: (context) => BuzzerRoundScreen()));
+                  // Navigator.push(context, MaterialPageRoute(builder: (context) => BuzzerRoundScreen()));
                 },
                 child: const ListTile(
                   title: Text(
@@ -121,10 +167,7 @@ class Drawer_Menu extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () {
-                  // Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(
-                  //         builder: (context) => Submittedtasks()));
+                  // Navigator.push(context, MaterialPageRoute(builder: (context) => Submittedtasks()));
                 },
                 child: const ListTile(
                   title: Text(
@@ -145,6 +188,8 @@ class Drawer_Menu extends StatelessWidget {
               ),
             ],
           ),
+
+          // Bottom logout section
           Padding(
             padding: const EdgeInsets.only(bottom: 20.0),
             child: Column(
@@ -157,10 +202,7 @@ class Drawer_Menu extends StatelessWidget {
                   ),
                   child: ElevatedButton(
                     onPressed: () {
-                      // Navigator.push(
-                      //     context,
-                      //     MaterialPageRoute(
-                      //         builder: (context) => BuzzerRoundScreen()));
+                      // Handle logout
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber,
@@ -176,14 +218,12 @@ class Drawer_Menu extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
                 Image.asset(
                   'assets/images/Logo (2).png',
                   height: 50,
                   width: 270,
-                )
+                ),
               ],
             ),
           ),

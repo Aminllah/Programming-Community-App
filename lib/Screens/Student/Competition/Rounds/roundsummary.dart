@@ -474,7 +474,288 @@ class _RoundsummaryState extends State<Roundsummary> {
                                     ],
                                   ),
                                 ),
-                              ] else ...[
+                              ]
+                              // else if (isType3) ...[
+                              //   // Display for shuffle-type questions (type 3)
+                              //   Column(
+                              //     children: [
+                              //       // Score status container (unchanged)
+                              //       Container(
+                              //         padding: const EdgeInsets.symmetric(
+                              //             horizontal: 12, vertical: 8),
+                              //         decoration: BoxDecoration(
+                              //           color: attempt.score > 0
+                              //               ? Colors.green.withOpacity(0.1)
+                              //               : Colors.red.withOpacity(0.1),
+                              //           borderRadius: BorderRadius.circular(8),
+                              //           border: Border.all(
+                              //             color: attempt.score > 0
+                              //                 ? Colors.green.withOpacity(0.3)
+                              //                 : Colors.red.withOpacity(0.3),
+                              //             width: 1,
+                              //           ),
+                              //         ),
+                              //         child: Row(
+                              //           children: [
+                              //             Icon(
+                              //               attempt.score > 0
+                              //                   ? Icons.check
+                              //                   : Icons.close,
+                              //               color: attempt.score > 0
+                              //                   ? Colors.green[600]
+                              //                   : Colors.red[600],
+                              //               size: 20,
+                              //             ),
+                              //             const SizedBox(width: 8),
+                              //             Text(
+                              //               attempt.score > 0
+                              //                   ? 'Correct'
+                              //                   : 'Incorrect',
+                              //               style: TextStyle(
+                              //                 color: attempt.score > 0
+                              //                     ? Colors.green[600]
+                              //                     : Colors.red[600],
+                              //                 fontWeight: FontWeight.bold,
+                              //                 fontSize: 15,
+                              //               ),
+                              //             ),
+                              //             const Spacer(),
+                              //             Container(
+                              //               padding: const EdgeInsets.symmetric(
+                              //                   horizontal: 10, vertical: 4),
+                              //               decoration: BoxDecoration(
+                              //                 color:
+                              //                     Colors.amber.withOpacity(0.2),
+                              //                 borderRadius:
+                              //                     BorderRadius.circular(12),
+                              //               ),
+                              //               child: Text(
+                              //                 'Score: ${attempt.score}',
+                              //                 style: const TextStyle(
+                              //                   fontWeight: FontWeight.bold,
+                              //                   fontSize: 14,
+                              //                 ),
+                              //               ),
+                              //             ),
+                              //           ],
+                              //         ),
+                              //       ),
+                              //       const SizedBox(height: 16),
+                              //
+                              //       // Line-by-line comparison
+                              //       Builder(
+                              //         builder: (_) {
+                              //           // Function to filter out empty lines and normalize
+                              //           List<String> processLines(
+                              //               List<dynamic> lines) {
+                              //             return lines
+                              //                 .where((line) => line
+                              //                     .toString()
+                              //                     .trim()
+                              //                     .isNotEmpty)
+                              //                 .map((line) =>
+                              //                     line.toString().trim())
+                              //                 .toList();
+                              //           }
+                              //
+                              //           // Process both answer sets (remove empty lines)
+                              //           List<String> userNonEmptyLines =
+                              //               processLines(userAnswerLines
+                              //                   .cast<dynamic>());
+                              //           List<String> correctNonEmptyLines =
+                              //               processLines(
+                              //                   (correctAnswerLines ?? [])
+                              //                       .cast<dynamic>());
+                              //
+                              //           // Count matching lines (position-sensitive)
+                              //           int correctLines = 0;
+                              //           int minLength = min(
+                              //               userNonEmptyLines.length,
+                              //               correctNonEmptyLines.length);
+                              //
+                              //           // Track matches
+                              //           List<bool> matches = [];
+                              //           for (int i = 0; i < minLength; i++) {
+                              //             bool match = userNonEmptyLines[i] ==
+                              //                 correctNonEmptyLines[i];
+                              //             if (match) correctLines++;
+                              //             matches.add(match);
+                              //           }
+                              //
+                              //           return Column(
+                              //             crossAxisAlignment:
+                              //                 CrossAxisAlignment.start,
+                              //             children: [
+                              //               // Your arrangement (non-empty lines only)
+                              //               Container(
+                              //                 padding: const EdgeInsets.all(12),
+                              //                 decoration: BoxDecoration(
+                              //                   color: Colors.grey[800],
+                              //                   borderRadius:
+                              //                       BorderRadius.circular(8),
+                              //                 ),
+                              //                 child: Column(
+                              //                   crossAxisAlignment:
+                              //                       CrossAxisAlignment.start,
+                              //                   children: [
+                              //                     Text(
+                              //                       'Your arrangement:',
+                              //                       style: TextStyle(
+                              //                         fontWeight:
+                              //                             FontWeight.bold,
+                              //                         color: Colors.grey[400],
+                              //                       ),
+                              //                     ),
+                              //                     const SizedBox(height: 8),
+                              //                     Text(
+                              //                       'Correct: $correctLines, Incorrect: ${userNonEmptyLines.length - correctLines}',
+                              //                       style: const TextStyle(
+                              //                         color: Colors.white70,
+                              //                         fontWeight:
+                              //                             FontWeight.bold,
+                              //                       ),
+                              //                     ),
+                              //                     const SizedBox(height: 8),
+                              //
+                              //                     // Display non-empty user lines with indicators
+                              //                     for (int i = 0;
+                              //                         i <
+                              //                             userNonEmptyLines
+                              //                                 .length;
+                              //                         i++)
+                              //                       Padding(
+                              //                         padding: const EdgeInsets
+                              //                             .symmetric(
+                              //                             vertical: 4),
+                              //                         child: Row(
+                              //                           crossAxisAlignment:
+                              //                               CrossAxisAlignment
+                              //                                   .start,
+                              //                           children: [
+                              //                             Icon(
+                              //                               i < correctNonEmptyLines.length &&
+                              //                                       matches[i]
+                              //                                   ? Icons
+                              //                                       .check_circle
+                              //                                   : Icons.cancel,
+                              //                               color: i <
+                              //                                           correctNonEmptyLines
+                              //                                               .length &&
+                              //                                       matches[i]
+                              //                                   ? Colors.green
+                              //                                   : Colors.red,
+                              //                               size: 20,
+                              //                             ),
+                              //                             const SizedBox(
+                              //                                 width: 8),
+                              //                             Expanded(
+                              //                               child: Column(
+                              //                                 crossAxisAlignment:
+                              //                                     CrossAxisAlignment
+                              //                                         .start,
+                              //                                 children: [
+                              //                                   Text(
+                              //                                     userNonEmptyLines[
+                              //                                         i],
+                              //                                     style: const TextStyle(
+                              //                                         color: Colors
+                              //                                             .white),
+                              //                                   ),
+                              //                                   if (i <
+                              //                                           correctNonEmptyLines
+                              //                                               .length &&
+                              //                                       !matches[i])
+                              //                                     Text(
+                              //                                       'Expected: ${correctNonEmptyLines[i]}',
+                              //                                       style:
+                              //                                           TextStyle(
+                              //                                         color: Colors
+                              //                                                 .green[
+                              //                                             300],
+                              //                                         fontSize:
+                              //                                             12,
+                              //                                       ),
+                              //                                     ),
+                              //                                 ],
+                              //                               ),
+                              //                             ),
+                              //                           ],
+                              //                         ),
+                              //                       ),
+                              //                   ],
+                              //                 ),
+                              //               ),
+                              //               const SizedBox(height: 12),
+                              //
+                              //               // Correct arrangement (non-empty lines only)
+                              //               Container(
+                              //                 padding: const EdgeInsets.all(12),
+                              //                 decoration: BoxDecoration(
+                              //                   color: Colors.grey[800],
+                              //                   borderRadius:
+                              //                       BorderRadius.circular(8),
+                              //                   border: Border.all(
+                              //                     color: Colors.green
+                              //                         .withOpacity(0.5),
+                              //                   ),
+                              //                 ),
+                              //                 child: Column(
+                              //                   crossAxisAlignment:
+                              //                       CrossAxisAlignment.start,
+                              //                   children: [
+                              //                     Text(
+                              //                       'Correct arrangement:',
+                              //                       style: TextStyle(
+                              //                         fontWeight:
+                              //                             FontWeight.bold,
+                              //                         color: Colors.grey[400],
+                              //                       ),
+                              //                     ),
+                              //                     const SizedBox(height: 8),
+                              //                     for (int i = 0;
+                              //                         i <
+                              //                             correctNonEmptyLines
+                              //                                 .length;
+                              //                         i++)
+                              //                       Padding(
+                              //                         padding: const EdgeInsets
+                              //                             .symmetric(
+                              //                             vertical: 4),
+                              //                         child: Row(
+                              //                           crossAxisAlignment:
+                              //                               CrossAxisAlignment
+                              //                                   .start,
+                              //                           children: [
+                              //                             const Icon(
+                              //                               Icons.check_circle,
+                              //                               color: Colors.green,
+                              //                               size: 20,
+                              //                             ),
+                              //                             const SizedBox(
+                              //                                 width: 8),
+                              //                             Expanded(
+                              //                               child: Text(
+                              //                                 correctNonEmptyLines[
+                              //                                     i],
+                              //                                 style: const TextStyle(
+                              //                                     color: Colors
+                              //                                         .white),
+                              //                               ),
+                              //                             ),
+                              //                           ],
+                              //                         ),
+                              //                       ),
+                              //                   ],
+                              //                 ),
+                              //               ),
+                              //             ],
+                              //           );
+                              //         },
+                              //       ),
+                              //     ],
+                              //   ),
+                              // ]
+                              else ...[
                                 // Display for multiple-choice questions
                                 Container(
                                   padding: const EdgeInsets.symmetric(

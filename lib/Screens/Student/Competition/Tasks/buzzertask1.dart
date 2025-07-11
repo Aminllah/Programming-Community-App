@@ -7,14 +7,14 @@ import '../../../../../Apis/apisintegration.dart';
 import '../../../../../Models/competitionattemptedquestions.dart';
 import '../../../../../Models/questionmodel.dart';
 import '../../../../../Models/roundResultModel.dart';
-import '../roundsummary.dart';
+import '../Rounds/roundsummary.dart';
 
-class BuzzerRoundScreen extends StatefulWidget {
+class Buzzertask1 extends StatefulWidget {
   final int competitionId;
   final int RoundId;
   final int roundType;
 
-  const BuzzerRoundScreen({
+  const Buzzertask1({
     super.key,
     required this.competitionId,
     required this.RoundId,
@@ -22,22 +22,22 @@ class BuzzerRoundScreen extends StatefulWidget {
   });
 
   @override
-  State<BuzzerRoundScreen> createState() => _BuzzerRoundScreenState();
+  State<Buzzertask1> createState() => _BuzzerRoundScreenState();
 }
 
-class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
+class _BuzzerRoundScreenState extends State<Buzzertask1> {
   List<QuestionModel> questions = [];
   int currentQuestionIndex = 0;
   bool isLoading = true;
   bool hasError = false;
 
-  bool get _canAnswer => _isFirstPresser; // only first‑press team may answer
+  bool get _canAnswer => _isFirstPresser;
   bool _buzzerPressed = false;
   bool _isFirstPresser = false;
-  bool _globalBuzzerPressed = false; // ← any team has pressed
+  bool _globalBuzzerPressed = false;
 
   int? _selectedOptionIndex;
-  Map<int, int?> selectedOptions = {}; // qID → optionID
+  Map<int, int?> selectedOptions = {};
 
   Timer? pollingTimer;
   Timer? _questionTimer;
@@ -49,7 +49,17 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
   @override
   void initState() {
     super.initState();
+    // Reset all states when initializing
+    _resetAllStates();
     _initializeData();
+  }
+
+  void _resetAllStates() {
+    _buzzerPressed = false;
+    _isFirstPresser = false;
+    _globalBuzzerPressed = false;
+    _selectedOptionIndex = null;
+    _remainingSeconds = 10;
   }
 
   @override
@@ -59,9 +69,6 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
     super.dispose();
   }
 
-  // ───────────────────────────────────────────────────────
-  // DATA & INITIAL SETUP
-  // ───────────────────────────────────────────────────────
   Future<void> _initializeData() async {
     try {
       await _loadTeamId();
@@ -124,13 +131,26 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
     setState(() {
       questions = parsed.where((q) => q.text.isNotEmpty).toList();
       isLoading = false;
+      // Reset states when loading new questions
+      _resetAllStates();
     });
     _startQuestionTimer();
   }
 
-  // ───────────────────────────────────────────────────────
-  // POLLING
-  // ───────────────────────────────────────────────────────
+  void _startQuestionTimer() {
+    _questionTimer?.cancel();
+    setState(() => _remainingSeconds = 10);
+    _questionTimer =
+        Timer.periodic(const Duration(seconds: 1), (Timer t) async {
+      if (!mounted) return;
+      if (_remainingSeconds > 0) {
+        setState(() => _remainingSeconds--);
+      } else {
+        _onTimerExpired();
+      }
+    });
+  }
+
   void _startPolling() {
     pollingTimer?.cancel();
     pollingTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
@@ -183,42 +203,22 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
     });
   }
 
-  // ───────────────────────────────────────────────────────
-  // TIMER
-  // ───────────────────────────────────────────────────────
-  void _startQuestionTimer() {
-    _questionTimer?.cancel();
-    setState(() => _remainingSeconds = 10);
-    _questionTimer =
-        Timer.periodic(const Duration(seconds: 1), (Timer t) async {
-      if (!mounted) return;
-      if (_remainingSeconds > 0) {
-        setState(() => _remainingSeconds--);
-      } else {
-        _onTimerExpired();
-      }
-    });
-  }
-
   void _stopQuestionTimer() => _questionTimer?.cancel();
 
   Future<void> _onTimerExpired() async {
     _stopQuestionTimer();
-    if (_buzzerPressed) return; // local user buzzed
+    if (_buzzerPressed) return;
 
     await _autoSubmitNoAnswer();
     await Api().resetBuzzer();
     await Api().moveToNextQuestion();
   }
 
-  // ───────────────────────────────────────────────────────
-  // BUZZER
-  // ───────────────────────────────────────────────────────
   Future<void> _pressBuzzer() async {
     if (teamid == null) return;
     try {
       final qId = questions[currentQuestionIndex].id;
-      final res = await Api().pressBuzzer(teamid!, qId);
+      final res = await Api().pressBuzzerbtn(teamid!, qId);
       setState(() {
         _buzzerPressed = true;
         _isFirstPresser = res.firstPressTeamId == teamid;
@@ -241,9 +241,6 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
     }
   }
 
-  // ───────────────────────────────────────────────────────
-  // SUBMISSIONS
-  // ───────────────────────────────────────────────────────
   Future<void> _submitAnswer() async {
     if (_selectedOptionIndex == null) {
       _showSnackBar('Please select an option', isError: true);
@@ -252,10 +249,59 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
 
     final q = questions[currentQuestionIndex];
     final opt = q.options![_selectedOptionIndex!];
-    final score = opt.isCorrect ? 1 : 0;
+    final isCorrect = opt.isCorrect;
+    final score = isCorrect ? 1 : 0;
+
+    print(
+        'Submitting answer for question ${q.id}: option ${opt.id}, isCorrect: $isCorrect');
 
     await _saveAttemptedQuestion(q, opt, score);
     await _saveRoundResult(score);
+
+    if (!isCorrect) {
+      print(
+          'Answer incorrect, requesting to advance turn for question ${q.id}...');
+      try {
+        final turn = await Api().advanceTurn(q.id);
+
+        if (turn == null) {
+          await Api().resetBuzzer();
+          setState(() {
+            _buzzerPressed = false;
+            _isFirstPresser = false;
+            _globalBuzzerPressed = false;
+            _selectedOptionIndex = null;
+          });
+          return;
+        }
+
+        print('Advance turn response: $turn');
+
+        if (turn.turnPassed == true) {
+          print('Turn passed to next team: ${turn.nextTeamId}');
+          _showSnackBar(
+            "Team ${turn.nextTeamName} will answer now.",
+            isError: false,
+          );
+        } else {
+          await Api().resetBuzzer();
+          await _moveToNextQuestion();
+        }
+      } catch (e) {
+        print('Error in advanceTurn: $e');
+        await Api().resetBuzzer();
+        setState(() {
+          _buzzerPressed = false;
+          _isFirstPresser = false;
+          _globalBuzzerPressed = false;
+          _selectedOptionIndex = null;
+        });
+        _startQuestionTimer();
+      }
+      return;
+    }
+
+    await Api().resetBuzzer();
     await _moveToNextQuestion();
   }
 
@@ -278,7 +324,6 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
       questionId: q.id,
       teamId: teamid!,
       answer: opt.option.toString(),
-      // ★ STORE OPTION ID, not text ★
       score: score,
       submissionTime: DateTime.now().toIso8601String(),
     );
@@ -298,8 +343,11 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
 
   Future<void> _moveToNextQuestion() async {
     _stopQuestionTimer();
-    _buzzerPressed = false;
-    _isFirstPresser = false;
+    setState(() {
+      _buzzerPressed = false;
+      _isFirstPresser = false;
+      _globalBuzzerPressed = false;
+    });
 
     final ok = await Api().moveToNextQuestion();
     final idx =
@@ -309,7 +357,6 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
       setState(() {
         currentQuestionIndex = idx;
         _selectedOptionIndex = selectedOptions[questions[idx].id] as int?;
-        _globalBuzzerPressed = false;
       });
       _startQuestionTimer();
     } else {
@@ -326,9 +373,6 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
     }
   }
 
-  // ───────────────────────────────────────────────────────
-  // WIDGET HELPERS
-  // ───────────────────────────────────────────────────────
   void _showSnackBar(String m, {required bool isError}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -356,9 +400,12 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
         ),
       );
 
-  // ───────────────────────────────────────────────────────
-  // BUILD
-  // ───────────────────────────────────────────────────────
+  Color get _buzzerColor {
+    if (!_globalBuzzerPressed) return Colors.red[700]!;
+    if (_isFirstPresser) return Colors.green;
+    return Colors.orange;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -370,7 +417,6 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
       );
     }
 
-    // error state
     if (hasError || questions.isEmpty) {
       return Scaffold(
         backgroundColor: Colors.black,
@@ -431,14 +477,12 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
                     child: RadioListTile<int>(
                       value: i,
                       groupValue: _selectedOptionIndex,
-                      onChanged: _canAnswer
-                          ? (v) {
-                              setState(() {
-                                _selectedOptionIndex = v;
-                                selectedOptions[q.id] = opt.id;
-                              });
-                            }
-                          : null,
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedOptionIndex = v;
+                          selectedOptions[q.id] = opt.id;
+                        });
+                      },
                       title: Text(opt.option),
                     ),
                   );
@@ -454,25 +498,25 @@ class _BuzzerRoundScreenState extends State<BuzzerRoundScreen> {
                     width: 180,
                     height: 180,
                     decoration: BoxDecoration(
-                      color: _buzzerPressed
-                          ? (_isFirstPresser ? Colors.green : Colors.red)
-                          : Colors.red[700],
+                      color: _isFirstPresser ? Colors.green : Colors.red,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                             blurRadius: 6, color: Colors.black.withOpacity(0.3))
                       ],
                     ),
-                    child: const Center(
+                    child: Center(
                         child: Text('BUZZ',
                             style: TextStyle(
-                                color: Colors.white,
+                                color: _globalBuzzerPressed
+                                    ? Colors.white
+                                    : Colors.black,
                                 fontWeight: FontWeight.bold))),
                   ),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: _canAnswer ? _submitAnswer : null,
+                  onPressed: _submitAnswer,
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green[700]),
                   child: const Padding(

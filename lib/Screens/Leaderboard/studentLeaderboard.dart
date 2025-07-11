@@ -14,7 +14,6 @@ class Studentleaderboard extends StatefulWidget {
 
 class _StudentleaderboardState extends State<Studentleaderboard> {
   late Future<List<Roundresultmodel>> _futureResults;
-  bool _isUpdating = false;
   int? _currentlyUpdatingTeam;
 
   @override

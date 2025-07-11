@@ -24,6 +24,9 @@ class _ShuffleQuestionsScreenState extends State<ShuffleQuestionsScreen> {
   final TextEditingController _questionController = TextEditingController();
   final TextEditingController _outputController = TextEditingController();
   bool _isLoading = false;
+  final List<TextEditingController> _solutionControllers = [
+    TextEditingController()
+  ];
 
   Future<void> _submitQuestion() async {
     // Validate inputs
@@ -36,7 +39,10 @@ class _ShuffleQuestionsScreenState extends State<ShuffleQuestionsScreen> {
 
     final SharedPreferences pref = await SharedPreferences.getInstance();
     final userId = pref.getInt('id');
-
+    final possibleSolutions = _solutionControllers
+        .map((controller) => controller.text.trim())
+        .where((text) => text.isNotEmpty)
+        .toList();
     if (userId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -59,6 +65,14 @@ class _ShuffleQuestionsScreenState extends State<ShuffleQuestionsScreen> {
         type: int.tryParse(widget.type) ?? 0,
         output: _outputController.text.isNotEmpty
             ? OutputModel(output: _outputController.text)
+            : null,
+        shuffledsolutions: possibleSolutions.isNotEmpty
+            ? possibleSolutions
+                .map((line) => ShuffledPosibleSolutionsModel(
+                      QuestionId: 0, // or omit if optional
+                      possibleSolution: line,
+                    ))
+                .toList()
             : null,
         options: [], // Include empty list to satisfy API
       );
@@ -128,6 +142,11 @@ class _ShuffleQuestionsScreenState extends State<ShuffleQuestionsScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
+              const SizedBox(height: 20),
+              const Text("Add Output",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              _buildSolutionInputs(),
               const SizedBox(height: 30),
               Center(
                 child: ElevatedButton(
@@ -146,6 +165,55 @@ class _ShuffleQuestionsScreenState extends State<ShuffleQuestionsScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSolutionInputs() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Add Possible Solutions",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        ..._solutionControllers.asMap().entries.map((entry) {
+          final index = entry.key;
+          final controller = entry.value;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: 'Solution ${index + 1}',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.remove_circle, color: Colors.red),
+                  onPressed: () {
+                    setState(() => _solutionControllers.removeAt(index));
+                  },
+                )
+              ],
+            ),
+          );
+        }),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () {
+              setState(() => _solutionControllers.add(TextEditingController()));
+            },
+            icon: const Icon(Icons.add, color: Colors.amber),
+            label:
+                const Text("Add More", style: TextStyle(color: Colors.amber)),
+          ),
+        )
+      ],
     );
   }
 }

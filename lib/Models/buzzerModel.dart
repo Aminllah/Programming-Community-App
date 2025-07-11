@@ -78,3 +78,24 @@ class BuzzzerPress {
         teamName = json['teamName'],
         pressTime = DateTime.parse(json['pressTime']);
 }
+
+class AdvanceTurnResponse {
+  final bool turnPassed;
+  final int? nextTeamId;
+  final String? nextTeamName;
+
+  AdvanceTurnResponse({
+    required this.turnPassed,
+    this.nextTeamId,
+    this.nextTeamName,
+  });
+}
+
+class CurrentTurn {
+  final int teamId;
+
+  CurrentTurn({required this.teamId});
+
+  @override
+  String toString() => 'CurrentTurn(teamId: $teamId)';
+}
